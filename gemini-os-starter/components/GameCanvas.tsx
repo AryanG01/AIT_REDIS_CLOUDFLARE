@@ -286,7 +286,7 @@ const GameCanvasComponent: React.FC<GameCanvasProps> = ({
         const mapHeight = tileMap.height * tileMap.tileSize;
 
         // Check map boundaries and trigger screen exit
-        // IMPORTANT: Only allow exit if player is on a walkable path
+        // IMPORTANT: Only allow exit on RIGHT side (forward progression)
         if (!isExiting.current) {
           // Check if current position is walkable before allowing exit
           const isOnPath = isPositionWalkable(tileMap, playerPosition.x, playerPosition.y);
@@ -295,24 +295,10 @@ const GameCanvasComponent: React.FC<GameCanvasProps> = ({
             // Define exit buffer zone (how close to edge triggers exit)
             const exitBuffer = 40;
 
+            // Only allow exit on RIGHT side (forward progression)
             if (newX > mapWidth - exitBuffer) {
               isExiting.current = true;
               onScreenExit('right');
-              return;
-            }
-            if (newX < exitBuffer) {
-              isExiting.current = true;
-              onScreenExit('left');
-              return;
-            }
-            if (newY > mapHeight - exitBuffer) {
-              isExiting.current = true;
-              onScreenExit('down');
-              return;
-            }
-            if (newY < exitBuffer) {
-              isExiting.current = true;
-              onScreenExit('up');
               return;
             }
           }

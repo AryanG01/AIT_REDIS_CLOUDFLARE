@@ -4,6 +4,7 @@
  */
 
 import type { GameSession } from '../lib/redis';
+import { apiUrl } from './apiConfig';
 
 const SESSION_TOKEN_KEY = 'gemini_os_session_token';
 const AUTO_SAVE_INTERVAL_MS = 30000; // 30 seconds
@@ -80,7 +81,7 @@ class SessionService {
    */
   private async createSession(session: GameSession): Promise<void> {
     try {
-      const response = await fetch('/api/session/create', {
+      const response = await fetch(apiUrl('/api/session/create'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session),
@@ -102,7 +103,7 @@ class SessionService {
    */
   private async restoreSession(sessionId: string): Promise<GameSession | null> {
     try {
-      const response = await fetch(`/api/session/${sessionId}`);
+      const response = await fetch(apiUrl(`/api/session/${sessionId}`));
 
       if (!response.ok) {
         return null;
@@ -154,7 +155,7 @@ class SessionService {
         },
       };
 
-      const response = await fetch(`/api/session/${this.currentSessionId}`, {
+      const response = await fetch(apiUrl(`/api/session/${this.currentSessionId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fullSession),
