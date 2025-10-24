@@ -8,9 +8,17 @@ import { StoryMode } from '../types';
 
 interface StoryInputProps {
   onSubmit: (story: string | null, mode: StoryMode) => void;
+  hasExistingSession?: boolean;
+  onRestoreSession?: () => void;
+  isRestoringSession?: boolean;
 }
 
-export const StoryInput: React.FC<StoryInputProps> = ({ onSubmit }) => {
+export const StoryInput: React.FC<StoryInputProps> = ({
+  onSubmit,
+  hasExistingSession = false,
+  onRestoreSession,
+  isRestoringSession = false
+}) => {
   const [storyText, setStoryText] = useState('');
   const [selectedMode, setSelectedMode] = useState<StoryMode>('inspiration');
   const [showModeSelect, setShowModeSelect] = useState(false);
@@ -284,6 +292,33 @@ export const StoryInput: React.FC<StoryInputProps> = ({ onSubmit }) => {
             The AI will create a world based on your tale.
           </p>
         </div>
+
+        {/* Continue Game Button (if session exists) */}
+        {hasExistingSession && onRestoreSession && (
+          <button
+            onClick={onRestoreSession}
+            disabled={isRestoringSession}
+            className="w-full mb-6 py-6 transition-all active:translate-y-2"
+            style={{
+              backgroundColor: isRestoringSession ? '#888' : '#5c8fb8',
+              border: `5px solid ${isRestoringSession ? '#555' : '#3d6487'}`,
+              borderRadius: '6px',
+              boxShadow: isRestoringSession ? '0 4px 0 #555' : '0 8px 0 #3d6487',
+              color: '#f4e8d0',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              letterSpacing: '2px',
+              cursor: isRestoringSession ? 'not-allowed' : 'pointer',
+              opacity: isRestoringSession ? 0.7 : 1
+            }}
+          >
+            {isRestoringSession ? (
+              <span>🔄 RESTORING SESSION...</span>
+            ) : (
+              <span>💾 CONTINUE GAME</span>
+            )}
+          </button>
+        )}
 
         {/* Story Input Box */}
         <div

@@ -37,6 +37,9 @@ import {
 import { VoiceControls } from './components/VoiceControls';
 import { speechService } from './services/speechService';
 import { preloadRoomAssets } from './utils/imagePreloader';
+// Session management
+import { sessionService } from './services/sessionService';
+import type { GameSession } from './lib/redis';
 
 // Track rooms currently being generated to prevent duplicate calls
 const generatingRooms = new Set<string>();
@@ -84,6 +87,9 @@ const App: React.FC = () => {
   const [roomGenerationProgress, setRoomGenerationProgress] = useState<number>(0);
   const [roomGenerationStep, setRoomGenerationStep] = useState<string>('Preparing room...');
   const [isStartingGame, setIsStartingGame] = useState<boolean>(false);
+  // Session management state
+  const [hasExistingSession, setHasExistingSession] = useState<boolean>(false);
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(false);
 
   // Game state with pixel art battles
   const [gameState, setGameState] = useState<GameState>({
@@ -168,6 +174,176 @@ const App: React.FC = () => {
       }
     }
   }, [gameState.currentRoomId, gameState.isInGame, showAIDialog, gameState.battleState]);
+
+  // Check for existing session on mount (session restoration)
+  useEffect(() => {
+    const checkForExistingSession = async () => {
+      try {
+        // Check URL for session parameter first
+        const urlSessionId = sessionService.getSessionFromURL();
+        if (urlSessionId) {
+          console.log('[App] 🔗 Session ID found in URL:', urlSessionId);
+          // Store in localStorage for future use
+          localStorage.setItem('gemini_os_session_token', urlSessionId);
+        }
+
+        // Check if we have a session token
+        const sessionToken = localStorage.getItem('gemini_os_session_token');
+        if (sessionToken) {
+          console.log('[App] 🔍 Checking for existing session...');
+          const savedSession = await sessionService.loadGameState();
+
+          if (savedSession) {
+            console.log('[App] ✅ Found existing session:', sessionToken);
+            setHasExistingSession(true);
+          } else {
+            console.log('[App] ❌ Session token exists but session not found in Redis');
+            // Clear invalid token
+            localStorage.removeItem('gemini_os_session_token');
+          }
+        }
+      } catch (error) {
+        console.error('[App] Failed to check for existing session:', error);
+      }
+    };
+
+    checkForExistingSession();
+  }, []);
+
+  // Auto-save game state every 30 seconds
+  useEffect(() => {
+    if (!gameState.isInGame) {
+      return; // Don't auto-save if not in game
+    }
+
+    const autoSaveInterval = setInterval(async () => {
+      console.log('[App] 💾 Auto-saving game state...');
+      await saveCurrentGameState();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [gameState.isInGame, gameState]);
+
+  // Save game state to Redis
+  const saveCurrentGameState = useCallback(async () => {
+    if (!gameState.isInGame || !gameState.selectedCharacter) {
+      return;
+    }
+
+    try {
+      const sessionData: Partial<GameSession> = {
+        storySeed: gameState.storySeed,
+        characterClass: gameState.selectedCharacter.name,
+        player: {
+          level: gameState.level,
+          hp: gameState.currentHP,
+          maxHp: gameState.maxHP,
+          mana: gameState.currentMana,
+          maxMana: gameState.maxMana,
+          experience: gameState.experience,
+          position: gameState.playerPosition,
+        },
+        currentRoomId: gameState.currentRoomId,
+        visitedRooms: Array.from(gameState.rooms.keys()),
+        inventory: gameState.inventory,
+        storyContext: {
+          mode: gameState.storyMode,
+          recreationText: gameState.storyContext,
+          storyEvents: gameState.storyConsequences,
+        },
+        metadata: {
+          totalPlayTime: 0, // TODO: Track play time
+          roomsExplored: gameState.rooms.size,
+          enemiesDefeated: 0, // TODO: Track from event logger
+          npcsInteracted: 0, // TODO: Track from event logger
+        },
+      };
+
+      await sessionService.saveGameState(sessionData);
+      console.log('[App] ✅ Game state saved to Redis');
+    } catch (error) {
+      console.error('[App] ❌ Failed to save game state:', error);
+    }
+  }, [gameState]);
+
+  // Restore session from Redis
+  const restoreSession = useCallback(async () => {
+    setIsRestoringSession(true);
+    try {
+      console.log('[App] 🔄 Restoring session from Redis...');
+      const savedSession = await sessionService.loadGameState();
+
+      if (!savedSession) {
+        throw new Error('No session data found');
+      }
+
+      // Initialize event logger with restored session
+      eventLogger.initialize(
+        savedSession.characterClass,
+        savedSession.storySeed
+      );
+
+      // Initialize room cache with story seed
+      roomCache.initialize(savedSession.storySeed);
+
+      // Try to restore rooms from cache
+      const cachedRooms = roomCache.getCachedRooms();
+      const roomsMap = new Map<string, Room>();
+
+      if (cachedRooms) {
+        cachedRooms.forEach((room, id) => {
+          roomsMap.set(id, room);
+        });
+        console.log(`[App] Restored ${roomsMap.size} rooms from cache`);
+      }
+
+      // Find the character class
+      const characterClass = availableClasses.find(
+        (c) => c.name === savedSession.characterClass
+      ) || CHARACTER_CLASSES[0];
+
+      // Restore game state
+      setGameState({
+        selectedCharacter: characterClass,
+        currentHP: savedSession.player.hp,
+        maxHP: savedSession.player.maxHp,
+        currentMana: savedSession.player.mana,
+        maxMana: savedSession.player.maxMana,
+        level: savedSession.player.level,
+        experience: savedSession.player.experience,
+        experienceToNextLevel: 100 * savedSession.player.level, // Approximate
+        isAlive: savedSession.player.hp > 0,
+        storySeed: savedSession.storySeed,
+        storyContext: savedSession.storyContext?.recreationText || null,
+        storyMode: savedSession.storyContext?.mode || 'inspiration',
+        biomeProgression: [], // Will be regenerated if needed
+        isInGame: true,
+        playerPosition: savedSession.player.position,
+        currentRoomId: savedSession.currentRoomId,
+        rooms: roomsMap,
+        roomCounter: savedSession.visitedRooms.length,
+        currentAnimation: null,
+        battleState: null,
+        inventory: savedSession.inventory,
+        storyConsequences: savedSession.storyContext?.storyEvents || [],
+        isGeneratingRoom: false,
+        storyRecreation: null,
+      });
+
+      setShowStoryInput(false);
+      setHasExistingSession(false);
+
+      console.log('[App] ✅ Session restored successfully');
+    } catch (error) {
+      console.error('[App] ❌ Failed to restore session:', error);
+      setError('Failed to restore session. Starting new game...');
+      // Clear invalid session
+      localStorage.removeItem('gemini_os_session_token');
+      setHasExistingSession(false);
+    } finally {
+      setIsRestoringSession(false);
+    }
+  }, [availableClasses]);
 
   // Handle story input submission
   const handleStorySubmit = useCallback(async (story: string | null, mode: 'inspiration' | 'recreation' | 'continuation') => {
@@ -326,9 +502,9 @@ const App: React.FC = () => {
 
         console.log(`[App] Sprites generated for pre-generated rooms (in parallel)`);
 
-        // Save ENHANCED rooms to cache
-        roomCache.saveRoom(enhancedNextRoom);
-        roomCache.saveRoom(enhancedNextNextRoom);
+        // Save ENHANCED rooms to cache with multi-tier caching
+        await roomCache.saveRoomMultiTier(enhancedNextRoom, true);
+        await roomCache.saveRoomMultiTier(enhancedNextNextRoom, true);
 
         // Save ENHANCED rooms to state
         setGameState((prev) => {
@@ -384,6 +560,11 @@ const App: React.FC = () => {
       // Initialize event logger
       eventLogger.initialize(character.name, gameState.storySeed);
 
+      // Initialize session in Redis
+      console.log('[App] 🔐 Initializing session in Redis...');
+      await sessionService.initializeSession(character.name, gameState.storySeed);
+      console.log('[App] ✅ Session initialized');
+
       // Get story beats for recreation mode
       const storyBeat0 = gameState.storyRecreation
         ? getStoryBeat(gameState.storyRecreation.storyStructure, 0)
@@ -425,8 +606,9 @@ const App: React.FC = () => {
       setRoomGenerationStep('Saving to cache...');
 
       // Save rooms to cache (already enhanced with sprites)
-      roomCache.saveRoom(room0);
-      roomCache.saveRoom(room1);
+      // Use multi-tier caching to save to both localStorage and KV
+      await roomCache.saveRoomMultiTier(room0, true);
+      await roomCache.saveRoomMultiTier(room1, true);
 
       setRoomGenerationProgress(90);
       setRoomGenerationStep('Finalizing world...');
@@ -634,10 +816,10 @@ const App: React.FC = () => {
           newRoom = await enhanceRoomWithSprites(newRoom, biomeKey, gameState.storyContext, newRoomCounter, gameState.storyMode);
         }
 
-        // Save to cache
+        // Save to cache with multi-tier caching
         setRoomGenerationProgress(90);
         setRoomGenerationStep('Building environment...');
-        roomCache.saveRoom(newRoom);
+        await roomCache.saveRoomMultiTier(newRoom, true);
       } else {
         console.log(`[App] Room ${newRoomId} found in cache or memory`);
         setRoomGenerationProgress(50);
@@ -649,8 +831,8 @@ const App: React.FC = () => {
 
           newRoom = await enhanceRoomWithSprites(newRoom, biomeKey, gameState.storyContext, newRoomCounter, gameState.storyMode);
 
-          // Update cache with enhanced version
-          roomCache.saveRoom(newRoom);
+          // Update cache with enhanced version (multi-tier)
+          await roomCache.saveRoomMultiTier(newRoom, true);
           console.log(`[App] Room ${newRoomId} sprites enhanced and cached`);
         }
 
@@ -762,6 +944,10 @@ const App: React.FC = () => {
 
       setRoomGenerationProgress(100);
 
+      // Save game state after room change
+      console.log('[App] 💾 Saving game state after room change...');
+      await saveCurrentGameState();
+
       // Pre-generate next room pair (N+1 and N+2) in the background
       triggerRoomPairPreGeneration(newRoomCounter, newRoom?.description);
 
@@ -850,7 +1036,13 @@ const App: React.FC = () => {
         experienceToNextLevel: calculateLevelUp(newLevel),
       };
     });
-  }, []);
+
+    // Save game state after level up
+    if (leveledUp) {
+      console.log('[App] 💾 Saving game state after level up...');
+      saveCurrentGameState().catch(err => console.error('Failed to save after level up:', err));
+    }
+  }, [saveCurrentGameState]);
 
   const internalHandleLlmRequest = useCallback(
     async (historyForLlm: InteractionData[], maxHistoryLength: number, updatedHP?: number, interactingObject?: GameObject) => {
@@ -1544,7 +1736,11 @@ const App: React.FC = () => {
       // Restore mana after battle (50% of max mana)
       currentMana: Math.min(prev.maxMana, prev.currentMana + Math.floor(prev.maxMana * 0.5)),
     }));
-  }, [gameState.battleState, gameState.rooms, gameState.currentRoomId]);
+
+    // Save game state after battle ends
+    console.log('[App] 💾 Saving game state after battle...');
+    saveCurrentGameState().catch(err => console.error('Failed to save after battle:', err));
+  }, [gameState.battleState, gameState.rooms, gameState.currentRoomId, saveCurrentGameState]);
 
   // Clear animation
   const handleAnimationComplete = useCallback(() => {
@@ -1616,7 +1812,12 @@ const App: React.FC = () => {
 
         <div className="w-full h-full" style={{backgroundColor: '#2d5a4e'}}>
           {showStoryInput ? (
-            <StoryInput onSubmit={handleStorySubmit} />
+            <StoryInput
+              onSubmit={handleStorySubmit}
+              hasExistingSession={hasExistingSession}
+              onRestoreSession={restoreSession}
+              isRestoringSession={isRestoringSession}
+            />
           ) : isGeneratingClasses ? (
             <ClassGenerationLoading currentStep={classGenerationStep} />
           ) : isLoading && isStartingGame ? (
