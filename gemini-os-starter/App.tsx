@@ -993,6 +993,8 @@ const App: React.FC = () => {
 
   // Handle adding experience and leveling up
   const handleAddExperience = useCallback((xpGained: number) => {
+    let didLevelUp = false;
+
     setGameState((prev) => {
       let newXP = prev.experience + xpGained;
       let newLevel = prev.level;
@@ -1008,6 +1010,8 @@ const App: React.FC = () => {
         newMaxMana += 10;
         leveledUp = true;
       }
+
+      didLevelUp = leveledUp;
 
       if (leveledUp) {
         // Show level up animation
@@ -1038,7 +1042,7 @@ const App: React.FC = () => {
     });
 
     // Save game state after level up
-    if (leveledUp) {
+    if (didLevelUp) {
       console.log('[App] 💾 Saving game state after level up...');
       saveCurrentGameState().catch(err => console.error('Failed to save after level up:', err));
     }
