@@ -57,6 +57,10 @@ const MAX_EVENTS_FOR_CONTEXT = 20;
 class EventLoggerService {
   private currentLog: EventLog | null = null;
   private isInitialized = false;
+  private pendingEvents: GameEvent[] = [];
+  private batchInterval: number | null = null;
+  private readonly BATCH_SIZE = 10; // Save to Redis after 10 events
+  private readonly BATCH_INTERVAL_MS = 60000; // Or after 1 minute
 
   initialize(characterClass: string | null, storySeed: number): void {
     this.currentLog = {
@@ -68,6 +72,9 @@ class EventLoggerService {
     };
     this.isInitialized = true;
     this.saveToLocalStorage();
+
+    // Start batch save interval
+    this.startBatchSaving();
   }
 
   logEvent(
@@ -95,6 +102,7 @@ class EventLoggerService {
     };
 
     this.currentLog.events.push(event);
+    this.pendingEvents.push(event);
 
     if (this.currentLog.events.length > MAX_EVENTS_IN_MEMORY) {
       const startIndex = this.currentLog.events.length - MAX_EVENTS_IN_MEMORY;
@@ -102,6 +110,75 @@ class EventLoggerService {
     }
 
     this.saveToLocalStorage();
+
+    // Batch save to Redis if we have enough events
+    if (this.pendingEvents.length >= this.BATCH_SIZE) {
+      this.flushEventsToRedis();
+    }
+  }
+
+  /**
+   * Start interval for batch saving events to Redis
+   */
+  private startBatchSaving(): void {
+    if (this.batchInterval !== null) {
+      return; // Already started
+    }
+
+    this.batchInterval = window.setInterval(() => {
+      this.flushEventsToRedis();
+    }, this.BATCH_INTERVAL_MS);
+  }
+
+  /**
+   * Stop batch saving interval
+   */
+  private stopBatchSaving(): void {
+    if (this.batchInterval !== null) {
+      clearInterval(this.batchInterval);
+      this.batchInterval = null;
+    }
+  }
+
+  /**
+   * Flush pending events to Redis via API
+   */
+  private async flushEventsToRedis(): Promise<void> {
+    if (!this.currentLog || this.pendingEvents.length === 0) {
+      return;
+    }
+
+    const eventsToSave = [...this.pendingEvents];
+    this.pendingEvents = []; // Clear pending immediately
+
+    try {
+      await fetch('/api/analytics/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: this.currentLog.sessionId,
+          events: eventsToSave,
+        }),
+      });
+
+      console.log(`[EventLogger] Flushed ${eventsToSave.length} events to Redis`);
+    } catch (error) {
+      console.warn('[EventLogger] Failed to flush events to Redis:', error);
+      // Re-add events to pending queue for retry
+      this.pendingEvents.unshift(...eventsToSave);
+
+      // Prevent infinite growth
+      if (this.pendingEvents.length > MAX_EVENTS_IN_MEMORY) {
+        this.pendingEvents = this.pendingEvents.slice(-MAX_EVENTS_IN_MEMORY);
+      }
+    }
+  }
+
+  /**
+   * Force flush all pending events (call before unload)
+   */
+  async flushAll(): Promise<void> {
+    await this.flushEventsToRedis();
   }
 
   getRecentEvents(count: number = MAX_EVENTS_FOR_CONTEXT): GameEvent[] {
@@ -216,8 +293,19 @@ class EventLoggerService {
   }
 
   reset(): void {
+    // Flush any pending events before reset
+    if (this.pendingEvents.length > 0) {
+      this.flushEventsToRedis().catch(err => {
+        console.warn('[EventLogger] Failed to flush events on reset:', err);
+      });
+    }
+
+    // Stop batch saving
+    this.stopBatchSaving();
+
     this.currentLog = null;
     this.isInitialized = false;
+    this.pendingEvents = [];
     this.clearLocalStorage();
   }
 

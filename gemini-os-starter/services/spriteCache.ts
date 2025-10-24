@@ -53,6 +53,90 @@ class SpriteCacheService {
     return cached;
   }
 
+  /**
+   * Get sprite with multi-tier caching (memory → KV → generate)
+   * This is an async version that checks KV cache if memory cache misses
+   */
+  async getSpriteMultiTier(prompt: string, type: CachedSprite['type'], biome?: string): Promise<CachedSprite | null> {
+    // L1: Check in-memory cache first
+    const memoryHit = this.getSprite(prompt, type, biome);
+    if (memoryHit) {
+      console.log('[SpriteCache] L1 HIT (memory)');
+      return memoryHit;
+    }
+
+    // L2: Check KV cache via API
+    try {
+      const cacheKey = `${prompt}:${type}:${biome || ''}`;
+      const response = await fetch(`/api/cache/sprite/${encodeURIComponent(cacheKey)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.cached && data.data) {
+          console.log('[SpriteCache] L2 HIT (KV)');
+
+          // Store in memory for next time
+          const sprite = data.data as CachedSprite;
+          this.setSprite(prompt, type, sprite.url, sprite.fallbackEmoji, biome, sprite.storyContext);
+
+          return sprite;
+        }
+      }
+    } catch (error) {
+      console.warn('[SpriteCache] KV lookup failed, falling back to local only:', error);
+    }
+
+    // No cache hit
+    return null;
+  }
+
+  /**
+   * Set sprite and optionally save to KV cache
+   */
+  async setSpriteMultiTier(
+    prompt: string,
+    type: CachedSprite['type'],
+    url: string,
+    fallbackEmoji: string,
+    biome?: string,
+    storyContext?: string,
+    saveToKV: boolean = true
+  ): Promise<void> {
+    // Always save to memory + localStorage
+    this.setSprite(prompt, type, url, fallbackEmoji, biome, storyContext);
+
+    // Optionally save to KV for cross-user sharing
+    if (saveToKV) {
+      try {
+        const sprite: CachedSprite = {
+          url,
+          prompt,
+          type,
+          fallbackEmoji,
+          timestamp: Date.now(),
+          biome,
+          storyContext,
+        };
+
+        await fetch('/api/cache/sprite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sprite,
+            prompt,
+            spriteType: type,
+            biome,
+          }),
+        });
+
+        console.log('[SpriteCache] Saved to KV cache');
+      } catch (error) {
+        console.warn('[SpriteCache] Failed to save to KV:', error);
+        // Non-fatal - already saved to local cache
+      }
+    }
+  }
+
   setSprite(
     prompt: string,
     type: CachedSprite['type'],

@@ -87,6 +87,94 @@ class SpeechCache {
   }
 
   /**
+   * Get speech with multi-tier caching (memory → KV → generate)
+   * KV stores URLs, not AudioBuffers
+   */
+  async getMultiTier(
+    text: string,
+    characterType?: CharacterArchetype,
+    emotion?: string
+  ): Promise<CachedSpeech | null> {
+    // L1: Check in-memory cache first
+    const memoryHit = await this.get(text, characterType, emotion);
+    if (memoryHit) {
+      console.log('[SpeechCache] L1 HIT (memory)');
+      return memoryHit;
+    }
+
+    // L2: Check KV cache via API
+    try {
+      const context = characterType || 'default';
+      const cacheKey = `${context}:${text}:${emotion || ''}`;
+      const response = await fetch(`/api/cache/audio/${encodeURIComponent(cacheKey)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.cached && data.data) {
+          console.log('[SpeechCache] L2 HIT (KV)');
+
+          // Reconstruct SpeechFile from cached URL
+          const url = data.data as string;
+          const speechFile: import('../types/voice').SpeechFile = {
+            url,
+            text,
+            generatedAt: Date.now(),
+            characterType,
+          };
+
+          // Store in memory for next time (with preloading)
+          await this.set(speechFile, characterType, emotion, true);
+
+          const cached = await this.get(text, characterType, emotion);
+          return cached;
+        }
+      }
+    } catch (error) {
+      console.warn('[SpeechCache] KV lookup failed, falling back to local only:', error);
+    }
+
+    // No cache hit
+    return null;
+  }
+
+  /**
+   * Store speech in both memory and KV cache
+   */
+  async setMultiTier(
+    speechFile: import('../types/voice').SpeechFile,
+    characterType?: CharacterArchetype,
+    emotion?: string,
+    preload: boolean = true,
+    saveToKV: boolean = true
+  ): Promise<void> {
+    // Always save to memory cache
+    await this.set(speechFile, characterType, emotion, preload);
+
+    // Optionally save URL to KV for cross-user sharing
+    if (saveToKV) {
+      try {
+        const context = characterType || 'default';
+        await fetch('/api/cache/audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: speechFile.text,
+            context,
+            url: speechFile.url,
+            emotion,
+            ttl: this.config.ttlMinutes * 60, // Convert to seconds
+          }),
+        });
+
+        console.log('[SpeechCache] Saved to KV cache');
+      } catch (error) {
+        console.warn('[SpeechCache] Failed to save to KV:', error);
+        // Non-fatal - already saved to memory
+      }
+    }
+  }
+
+  /**
    * Store speech in cache
    */
   async set(

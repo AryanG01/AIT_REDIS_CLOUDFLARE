@@ -1,0 +1,53 @@
+name = "gemini-os-workers"
+main = "workers/index.ts"
+compatibility_date = "2024-01-01"
+
+# Cloudflare Pages Integration
+# This Workers project will handle API routes for the Pages application
+pages_build_output_dir = "dist"
+
+# Environment Variables (set these in Cloudflare dashboard)
+# UPSTASH_REDIS_REST_URL
+# UPSTASH_REDIS_REST_TOKEN
+# FAL_KEY
+# GEMINI_API_KEY (if used server-side)
+
+# KV Namespaces for distributed caching
+[[kv_namespaces]]
+binding = "SPRITE_CACHE"
+id = "placeholder" # Replace with actual KV namespace ID after creation
+
+[[kv_namespaces]]
+binding = "ROOM_CACHE"
+id = "placeholder" # Replace with actual KV namespace ID after creation
+
+[[kv_namespaces]]
+binding = "AUDIO_CACHE"
+id = "placeholder" # Replace with actual KV namespace ID after creation
+
+# Development environment (for local testing with `wrangler dev`)
+[env.development]
+[[env.development.kv_namespaces]]
+binding = "SPRITE_CACHE"
+id = "placeholder_dev"
+
+[[env.development.kv_namespaces]]
+binding = "ROOM_CACHE"
+id = "placeholder_dev"
+
+[[env.development.kv_namespaces]]
+binding = "AUDIO_CACHE"
+id = "placeholder_dev"
+
+# Routes configuration for Cloudflare Pages Functions
+# These will be handled by workers/index.ts
+[build]
+command = "pnpm run build"
+
+# Worker settings
+[vars]
+ENVIRONMENT = "production"
+
+# Limits
+[limits]
+cpu_ms = 50  # Max 50ms CPU time per request (generous for API proxy)

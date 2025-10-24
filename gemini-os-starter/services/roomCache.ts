@@ -78,6 +78,70 @@ export class RoomCache {
     }
   }
 
+  /**
+   * Get room with multi-tier caching (localStorage → KV → generate)
+   * This is an async version that checks KV cache if localStorage misses
+   */
+  async getRoomMultiTier(roomId: string): Promise<Room | null> {
+    // L1: Check localStorage first
+    const localHit = this.getRoom(roomId);
+    if (localHit) {
+      console.log('[RoomCache] L1 HIT (localStorage)');
+      return localHit;
+    }
+
+    // L2: Check KV cache via API
+    try {
+      const cacheKey = `${this.storySeed}:${roomId}`;
+      const response = await fetch(`/api/cache/room/${encodeURIComponent(cacheKey)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.cached && data.data) {
+          console.log('[RoomCache] L2 HIT (KV)');
+
+          // Store in localStorage for next time
+          const room = data.data as Room;
+          this.saveRoom(room);
+
+          return room;
+        }
+      }
+    } catch (error) {
+      console.warn('[RoomCache] KV lookup failed, falling back to local only:', error);
+    }
+
+    // No cache hit
+    return null;
+  }
+
+  /**
+   * Save room to both localStorage and KV cache
+   */
+  async saveRoomMultiTier(room: Room, saveToKV: boolean = true): Promise<void> {
+    // Always save to localStorage
+    this.saveRoom(room);
+
+    // Optionally save to KV for cross-user sharing
+    if (saveToKV) {
+      try {
+        await fetch('/api/cache/room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room,
+            storySeed: this.storySeed,
+          }),
+        });
+
+        console.log('[RoomCache] Saved to KV cache');
+      } catch (error) {
+        console.warn('[RoomCache] Failed to save to KV:', error);
+        // Non-fatal - already saved to localStorage
+      }
+    }
+  }
+
   saveRoom(room: Room): void {
     try {
       let data: CachedRoomData;
