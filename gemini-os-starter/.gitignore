@@ -25,3 +25,7 @@ dist-ssr
 
 # Environment variables with secrets
 .env
+.dev.vars
+
+# Wrangler build cache (should not be committed)
+.wrangler/
