@@ -2,52 +2,33 @@ name = "gemini-os-workers"
 main = "workers/index.ts"
 compatibility_date = "2024-01-01"
 
-# Cloudflare Pages Integration
-# This Workers project will handle API routes for the Pages application
-pages_build_output_dir = "dist"
+# This is the Workers API backend
+# Frontend will be deployed separately to Cloudflare Pages
 
-# Environment Variables (set these in Cloudflare dashboard)
-# UPSTASH_REDIS_REST_URL
-# UPSTASH_REDIS_REST_TOKEN
-# FAL_KEY
-# GEMINI_API_KEY (if used server-side)
+# Environment Variables (set via wrangler secret put)
+# FAL_KEY - Secret
+# UPSTASH_REDIS_REST_TOKEN - Secret
+# GEMINI_API_KEY - Secret
+# UPSTASH_REDIS_REST_URL - Non-secret (set via wrangler secret put or dashboard)
 
 # KV Namespaces for distributed caching
 [[kv_namespaces]]
 binding = "SPRITE_CACHE"
-id = "placeholder" # Replace with actual KV namespace ID after creation
+id = "fa535d63200248e59dffd48b276e1761"
+preview_id = "4cc8777a93674bc385c0322a7f3d5c50"
 
 [[kv_namespaces]]
 binding = "ROOM_CACHE"
-id = "placeholder" # Replace with actual KV namespace ID after creation
+id = "1a2c613af04e4799966f8249a25d24a0"
+preview_id = "909375d3dbd34fbe8f50066e9d57ce04"
 
 [[kv_namespaces]]
 binding = "AUDIO_CACHE"
-id = "placeholder" # Replace with actual KV namespace ID after creation
-
-# Development environment (for local testing with `wrangler dev`)
-[env.development]
-[[env.development.kv_namespaces]]
-binding = "SPRITE_CACHE"
-id = "placeholder_dev"
-
-[[env.development.kv_namespaces]]
-binding = "ROOM_CACHE"
-id = "placeholder_dev"
-
-[[env.development.kv_namespaces]]
-binding = "AUDIO_CACHE"
-id = "placeholder_dev"
-
-# Routes configuration for Cloudflare Pages Functions
-# These will be handled by workers/index.ts
-[build]
-command = "pnpm run build"
+id = "cee50ff7695e41b5a504e4a43951fecf"
+preview_id = "be8b12018c2f4d21b3e0dd8f81c65d24"
 
 # Worker settings
 [vars]
 ENVIRONMENT = "production"
 
-# Limits
-[limits]
-cpu_ms = 50  # Max 50ms CPU time per request (generous for API proxy)
+# Note: CPU limits are only available on paid plans
