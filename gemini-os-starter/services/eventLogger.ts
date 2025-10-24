@@ -34,6 +34,7 @@ export interface GameEvent {
     itemName?: string;
     choiceId?: string;
     choiceText?: string;
+    choiceType?: string;  // Type of choice for branch prediction
     consequenceType?: string;
     damageDealt?: number;
     damageTaken?: number;
