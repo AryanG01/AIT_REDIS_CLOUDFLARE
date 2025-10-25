@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/redis-cloudflare-integration
+      - feature/security-proxy-migration
   workflow_dispatch:
 
 jobs:
