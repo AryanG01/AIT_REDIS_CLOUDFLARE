@@ -82,7 +82,7 @@ jobs:
         id: deploy
         working-directory: gemini-os-starter
         run: |
-          DEPLOY_OUTPUT=$(pnpm run deploy 2>&1)
+          DEPLOY_OUTPUT=$(npx wrangler pages deploy dist --project-name=storyforged 2>&1)
           echo "$DEPLOY_OUTPUT"
           # Extract URL from deployment output
           PAGES_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://[a-z0-9]*\.storyforged\.pages\.dev' | head -1)
