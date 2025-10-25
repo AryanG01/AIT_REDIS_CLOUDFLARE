@@ -8,6 +8,8 @@
  * Replaces direct fal.ai SDK usage to protect API keys
  */
 
+import { getApiBaseUrl } from './apiConfig';
+
 export interface FalProxyRequest {
   endpoint: string;
   input: Record<string, any>;
@@ -28,9 +30,7 @@ export async function falProxySubscribe(
   endpoint: string,
   options: { input: Record<string, any>; logs?: boolean }
 ): Promise<any> {
-  const apiUrl = import.meta.env.DEV
-    ? 'http://localhost:3000/api/fal-proxy'  // Local dev
-    : '/api/fal-proxy';                       // Production
+  const apiUrl = `${getApiBaseUrl()}/api/fal-proxy`;
 
   console.log(`[FalProxy] Calling ${endpoint} via backend proxy...`);
 
