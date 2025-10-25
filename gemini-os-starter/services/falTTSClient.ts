@@ -3,33 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { fal } from "@fal-ai/client";
 import { TTSModel, VoiceProfile, SpeechFile, FalTTSResponse } from '../types/voice';
+import { falProxySubscribe } from './falProxyClient';
 
 /**
- * Initialize fal.ai client (already done in falAudioClient, but check again)
+ * Secure FAL TTS Client
+ * All API calls routed through backend proxy to protect API keys
  */
-const initializeFalClient = () => {
-  const apiKey = import.meta.env.VITE_FAL_KEY;
-
-  if (!apiKey) {
-    console.warn('[FalTTS] VITE_FAL_KEY not found. TTS will fail.');
-    console.warn('[FalTTS] Add VITE_FAL_KEY to your .env.local file');
-    return;
-  }
-
-  try {
-    fal.config({
-      credentials: apiKey,
-    });
-    console.log('[FalTTS] Client initialized successfully');
-  } catch (error) {
-    console.error('[FalTTS] Failed to initialize client:', error);
-  }
-};
-
-// Initialize on module load
-initializeFalClient();
 
 /**
  * Model endpoint mapping for TTS
@@ -145,7 +125,7 @@ export const generateSpeech = async (
     switch (model) {
       case 'dia-tts': {
         // Dia TTS - emotion-aware dialogue generation
-        result = await fal.subscribe(endpoint, {
+        result = await falProxySubscribe(endpoint, {
           input: {
             text,
             audio_conditioning: voiceProfile.description
@@ -153,21 +133,13 @@ export const generateSpeech = async (
               : undefined,
           },
           logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              const logs = update.logs?.map((log) => log.message) || [];
-              if (logs.length > 0) {
-                console.log(`[FalTTS] ${model}:`, logs[logs.length - 1]);
-              }
-            }
-          },
         }) as { data: FalTTSResponse };
         break;
       }
 
       case 'minimax-speech': {
         // MiniMax - high quality with voice selection
-        result = await fal.subscribe(endpoint, {
+        result = await falProxySubscribe(endpoint, {
           input: {
             text,
             voice_id: voiceProfile.voiceId || MINIMAX_VOICE_IDS.hero_male,
@@ -176,21 +148,13 @@ export const generateSpeech = async (
             pitch: voiceProfile.pitch || 0,
           },
           logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              const logs = update.logs?.map((log) => log.message) || [];
-              if (logs.length > 0) {
-                console.log(`[FalTTS] ${model}:`, logs[logs.length - 1]);
-              }
-            }
-          },
         }) as { data: FalTTSResponse };
         break;
       }
 
       case 'playai-tts': {
         // PlayAI - fast and multilingual
-        result = await fal.subscribe(endpoint, {
+        result = await falProxySubscribe(endpoint, {
           input: {
             text,
             voice: voiceProfile.voiceId || 'en-US-Neural2-A',
@@ -198,21 +162,13 @@ export const generateSpeech = async (
             emotion: voiceProfile.emotion || 'neutral',
           },
           logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              const logs = update.logs?.map((log) => log.message) || [];
-              if (logs.length > 0) {
-                console.log(`[FalTTS] ${model}:`, logs[logs.length - 1]);
-              }
-            }
-          },
         }) as { data: FalTTSResponse };
         break;
       }
 
       case 'vibevoice': {
         // VibeVoice - expressive multi-voice
-        result = await fal.subscribe(endpoint, {
+        result = await falProxySubscribe(endpoint, {
           input: {
             text,
             voice_preset: voiceProfile.voiceId || 'default',
@@ -220,14 +176,6 @@ export const generateSpeech = async (
             style: voiceProfile.style || 0.5,
           },
           logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              const logs = update.logs?.map((log) => log.message) || [];
-              if (logs.length > 0) {
-                console.log(`[FalTTS] ${model}:`, logs[logs.length - 1]);
-              }
-            }
-          },
         }) as { data: FalTTSResponse };
         break;
       }
@@ -256,17 +204,9 @@ export const generateSpeech = async (
           }
         });
 
-        result = await fal.subscribe(endpoint, {
+        result = await falProxySubscribe(endpoint, {
           input: elevenLabsInput,
           logs: true,
-          onQueueUpdate: (update) => {
-            if (update.status === "IN_PROGRESS") {
-              const logs = update.logs?.map((log) => log.message) || [];
-              if (logs.length > 0) {
-                console.log(`[FalTTS] ${model}:`, logs[logs.length - 1]);
-              }
-            }
-          },
         }) as { data: FalTTSResponse };
         break;
       }
@@ -324,10 +264,6 @@ export const generateSpeech = async (
     return speechFile;
   } catch (error: any) {
     console.error(`[FalTTS] Generation failed for ${model}:`, error);
-
-    if (error.message?.includes('credentials')) {
-      throw new Error('FAL_KEY not configured. Add VITE_FAL_KEY to .env.local');
-    }
 
     throw new Error(`Speech generation failed: ${error.message || 'Unknown error'}`);
   }
@@ -508,10 +444,6 @@ export const generateSpeechStreaming = async (
     return speechFile;
   } catch (error: any) {
     console.error(`[FalTTS] Streaming failed for ${voiceProfile.model}:`, error);
-
-    if (error.message?.includes('credentials')) {
-      throw new Error('FAL_KEY not configured. Add VITE_FAL_KEY to .env.local');
-    }
 
     throw new Error(`Speech streaming failed: ${error.message || 'Unknown error'}`);
   }

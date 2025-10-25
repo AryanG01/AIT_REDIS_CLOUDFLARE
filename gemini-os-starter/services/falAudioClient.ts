@@ -3,33 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { fal } from "@fal-ai/client";
 import { MusicModel, AudioFile, FalAudioResponse } from '../types/audio';
+import { falProxySubscribe } from './falProxyClient';
 
 /**
- * Configure fal.ai client with API key from environment
+ * Secure FAL Audio Client
+ * All API calls routed through backend proxy to protect API keys
  */
-const initializeFalClient = () => {
-  const apiKey = import.meta.env.VITE_FAL_KEY;
-
-  if (!apiKey) {
-    console.warn('VITE_FAL_KEY not found in environment. Music generation will fail.');
-    console.warn('Add VITE_FAL_KEY to your .env.local file');
-    return;
-  }
-
-  try {
-    fal.config({
-      credentials: apiKey,
-    });
-    console.log('[FalAudio] Client initialized successfully');
-  } catch (error) {
-    console.error('[FalAudio] Failed to initialize client:', error);
-  }
-};
-
-// Initialize on module load
-initializeFalClient();
 
 /**
  * Model endpoint mapping
@@ -72,20 +52,12 @@ export const generateMusic = async (
   try {
     const startTime = Date.now();
 
-    const result = await fal.subscribe(endpoint, {
+    const result = await falProxySubscribe(endpoint, {
       input: {
         prompt,
         duration: actualDuration,
       },
       logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === "IN_PROGRESS") {
-          const logs = update.logs?.map((log) => log.message) || [];
-          if (logs.length > 0) {
-            console.log(`[FalAudio] ${model}:`, logs[logs.length - 1]);
-          }
-        }
-      },
     }) as { data: FalAudioResponse };
 
     const endTime = Date.now();
@@ -110,11 +82,6 @@ export const generateMusic = async (
     if (enableFallback && model !== 'cassetteai') {
       console.warn(`[FalAudio] Falling back to cassetteai for: "${prompt.slice(0, 60)}..."`);
       return generateMusic(prompt, 'cassetteai', 15, false); // Disable fallback recursion
-    }
-
-    // Provide helpful error messages
-    if (error.message?.includes('credentials')) {
-      throw new Error('FAL_KEY not configured. Add VITE_FAL_KEY to .env.local');
     }
 
     throw new Error(`Music generation failed: ${error.message || 'Unknown error'}`);
@@ -164,13 +131,12 @@ export const preloadAudioBuffer = async (url: string): Promise<AudioBuffer> => {
 };
 
 /**
- * Health check - verify fal.ai is accessible
+ * Health check - verify fal.ai proxy is accessible
  */
 export const checkFalConnection = async (): Promise<boolean> => {
   try {
-    // Try a minimal generation to verify API key works
-    const apiKey = import.meta.env.VITE_FAL_KEY;
-    return !!apiKey;
+    // Proxy is always available - no API key needed on client
+    return true;
   } catch (error) {
     console.error('[FalAudio] Connection check failed:', error);
     return false;
