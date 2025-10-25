@@ -5,7 +5,7 @@
 /* tslint:disable */
 import {CharacterClass, CHARACTER_CLASSES} from '../characterClasses';
 import {StoryMode} from '../types';
-import {geminiProxyGenerate, GEMINI_MODELS, isApiKeyConfigured} from './geminiProxyClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 const CHARACTER_EXTRACTION_PROMPT = (storyContext: string) => `
 You are a game design AI. Based on the story provided, extract 5 main characters from the story that the player could play AS.
@@ -301,11 +301,6 @@ export async function generateCharacterClasses(
 ): Promise<CharacterClass[]> {
   // If no story context, return default classes
   if (!storyContext) {
-    return getDefaultClasses();
-  }
-
-  if (!isApiKeyConfigured()) {
-    console.error('API_KEY not configured, using default classes');
     return getDefaultClasses();
   }
 

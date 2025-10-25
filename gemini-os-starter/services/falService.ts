@@ -3,17 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import * as fal from '@fal-ai/serverless-client';
-
-// Configure fal.ai with API key from environment variable
-const falKey = import.meta.env.VITE_FAL_KEY;
-if (!falKey) {
-  console.error('[falService] VITE_FAL_KEY not found in environment variables');
-}
-
-fal.config({
-  credentials: falKey,
-});
+import { falProxySubscribe } from './falProxyClient';
 
 const PIXEL_ART_STYLE = '16-bit pixel art, top-down view, game sprite, Stardew Valley style, retro gaming aesthetic';
 const NEGATIVE_PROMPT = 'blurry, 3D, realistic, photograph, low quality, modern, detailed shading';
@@ -148,14 +138,13 @@ The reference image is an INPAINTING MASK following industry standards where:
 
         console.log(`[falService] Enhanced prompt with inpainting mask interpretation instructions`);
 
-        // Upload all Blobs and collect URLs
+        // Convert Blobs to base64 data URLs for proxy
         const imageUrls: string[] = [];
         for (const ref of referencesToProcess) {
           if (ref instanceof Blob) {
-            console.log(`[falService] Uploading Blob to fal.ai storage (${ref.size} bytes)...`);
-            const uploadedFile = await fal.storage.upload(ref);
-            imageUrls.push(uploadedFile);
-            console.log(`[falService] Blob uploaded: ${uploadedFile.substring(0, 60)}...`);
+            console.log(`[falService] Converting Blob to base64 (${ref.size} bytes)...`);
+            const base64 = await blobToBase64(ref);
+            imageUrls.push(base64);
           } else {
             imageUrls.push(ref); // Use URL/data URI directly
           }
@@ -164,37 +153,25 @@ The reference image is an INPAINTING MASK following industry standards where:
         console.log(`[falService] Using ${imageUrls.length} reference images for layout anchor system`);
         console.log(`[falService] Reference images are INPAINTING MASKS (WHITE paths on BLACK obstacles, feathered edges)`);
 
-        result = await fal.subscribe('fal-ai/gemini-25-flash-image/edit', {
+        // Call FAL API through secure proxy
+        result = await falProxySubscribe('fal-ai/gemini-25-flash-image/edit', {
           input: {
             prompt: fullPrompt,
             image_urls: imageUrls, // Layout references (path masks)
             aspect_ratio: aspectRatio,
             num_images: 1,
-            // Note: Nano Banana's /edit endpoint doesn't expose strength directly
-            // It uses image_urls as composition anchors with high adherence by default
-            // The prompt contains explicit instructions for layout preservation
           },
-          logs: true, // Enable logs to see Nano Banana's interpretation
-          onQueueUpdate: (update) => {
-            if (update.status === 'IN_PROGRESS') {
-              console.log(`Nano Banana generating ${type}: ${update.logs?.map(l => l.message).join(' ')}`);
-            }
-          },
+          logs: true,
         });
       } else {
-        // Text-to-Image with Nano Banana
-        result = await fal.subscribe('fal-ai/gemini-25-flash-image', {
+        // Text-to-Image with Nano Banana - Call through secure proxy
+        result = await falProxySubscribe('fal-ai/gemini-25-flash-image', {
           input: {
             prompt: fullPrompt,
             aspect_ratio: aspectRatio,
             num_images: 1,
           },
           logs: false,
-          onQueueUpdate: (update) => {
-            if (update.status === 'IN_PROGRESS') {
-              console.log(`Nano Banana generating ${type}: ${update.logs?.map(l => l.message).join(' ')}`);
-            }
-          },
         });
       }
     } else {
@@ -216,14 +193,10 @@ The reference image is an INPAINTING MASK following industry standards where:
         console.log(`[falService] Using reference image with strength ${imageStrength}`);
       }
 
-      result = await fal.subscribe('fal-ai/flux/schnell', {
+      // Call FAL API through secure proxy
+      result = await falProxySubscribe('fal-ai/flux/schnell', {
         input: inputConfig,
         logs: false,
-        onQueueUpdate: (update) => {
-          if (update.status === 'IN_PROGRESS') {
-            console.log(`Generating ${type}: ${update.logs?.map(l => l.message).join(' ')}`);
-          }
-        },
       });
     }
 
@@ -369,4 +342,16 @@ export async function generateExplorationSprites(spriteDescriptions: {
   }
 
   return parsed;
+}
+
+/**
+ * Convert Blob to base64 data URL
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }

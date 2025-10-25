@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import {geminiProxyGenerate, GEMINI_MODELS, isApiKeyConfigured} from './geminiProxyClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 export interface StoryBeat {
   roomNumber: number;
@@ -158,10 +158,6 @@ Now analyze the provided story and return the JSON structure.
  * Analyze a story and extract its structure for recreation mode
  */
 export async function analyzeStoryStructure(storyContext: string): Promise<StoryStructure> {
-  if (!isApiKeyConfigured()) {
-    throw new Error('API_KEY not configured');
-  }
-
   console.log('[StoryStructure] Analyzing story structure for recreation mode...');
 
   const model = GEMINI_MODELS.FLASH_EXP;

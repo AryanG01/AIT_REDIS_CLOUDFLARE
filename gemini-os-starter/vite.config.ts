@@ -18,10 +18,9 @@ export default defineConfig(({ mode }) => {
         }
       },
       plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
+      // SECURITY: Do NOT inject API keys into frontend!
+      // Only inject the API base URL - all API calls go through secure backend proxy
+      define: {},
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

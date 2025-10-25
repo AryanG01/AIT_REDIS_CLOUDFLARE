@@ -3,18 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import * as fal from '@fal-ai/serverless-client';
+import { falProxySubscribe } from './falProxyClient';
 import { spriteCache } from './spriteCache';
 
 // Use environment variable for credentials
-const falKey = import.meta.env.VITE_FAL_KEY;
-if (!falKey) {
-  console.error('[SpriteGen] VITE_FAL_KEY not found in environment variables');
-}
-
-fal.config({
-  credentials: falKey,
-});
 
 export interface SpriteGenerationParams {
   description: string;
@@ -64,7 +56,7 @@ function buildSpritePrompt(params: SpriteGenerationParams): string {
 async function removeBackground(imageUrl: string): Promise<string> {
   try {
     console.log('[SpriteGen] Removing background from generated sprite');
-    const result: any = await fal.subscribe('fal-ai/bria/background/remove', {
+    const result: any = await falProxySubscribe('fal-ai/bria/background/remove', {
       input: {
         image_url: imageUrl,
       },
@@ -105,7 +97,7 @@ export async function generateSprite(
   const fullPrompt = buildSpritePrompt(params);
 
   try {
-    const result: any = await fal.subscribe('fal-ai/flux/schnell', {
+    const result: any = await falProxySubscribe('fal-ai/flux/schnell', {
       input: {
         prompt: fullPrompt,
         image_size: {

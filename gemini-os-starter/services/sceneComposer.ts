@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import * as fal from '@fal-ai/serverless-client';
+import { falProxySubscribe } from './falProxyClient';
 
 export interface ComposedScene {
   url: string;
@@ -29,7 +29,7 @@ Top-down RPG perspective, cohesive retro pixel art aesthetic with detailed envir
       ? [referenceImageUrl, playerSpriteUrl, npcSpriteUrl]
       : [playerSpriteUrl, npcSpriteUrl];
 
-    const result: any = await fal.subscribe('fal-ai/nano-banana/edit', {
+    const result: any = await falProxySubscribe('fal-ai/nano-banana/edit', {
       input: {
         prompt,
         image_urls: imageUrls,
@@ -67,7 +67,7 @@ export async function composeSceneWithBackground(
 16-bit SNES style, top-down RPG perspective, cohesive pixel art aesthetic. 
 Integrate the characters naturally into the ${biome} environment with atmospheric lighting and depth.`;
 
-    const result: any = await fal.subscribe('fal-ai/nano-banana/edit', {
+    const result: any = await falProxySubscribe('fal-ai/nano-banana/edit', {
       input: {
         prompt,
         image_urls: [playerSpriteUrl, npcSpriteUrl],

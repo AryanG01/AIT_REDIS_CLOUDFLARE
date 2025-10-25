@@ -187,20 +187,8 @@ export async function generateSingleRoomScene(
     const [imagePrompt, referenceImage] = await Promise.all([
       // Operation 1: Gemini prompt generation (1-2s)
       (async () => {
-        const ai = getGeminiClient();
-        const response = await ai.models.generateContentStream({
-          model: GEMINI_MODELS.FLASH,
-          contents: promptRequest,
-          config: {},
-        });
-
-        // Extract the generated prompt from stream
-        let prompt = '';
-        for await (const chunk of response) {
-          if (chunk.text) {
-            prompt += chunk.text;
-          }
-        }
+        // Call Gemini API through secure proxy
+        const prompt = await geminiProxyGenerate(GEMINI_MODELS.FLASH, promptRequest);
         console.log(prompt);
 
         const trimmedPrompt = prompt.trim();
@@ -270,33 +258,15 @@ export async function generateScenePanorama(
     const [currentImagePrompt, nextImagePrompt, panoramaReferenceUrl] = await Promise.all([
       // Operation 1: Generate current room prompt (1-2s)
       (async () => {
-        const ai = getGeminiClient();
-        const response = await ai.models.generateContentStream({
-          model: GEMINI_MODELS.FLASH,
-          contents: currentPromptRequest,
-          config: {},
-        });
-
-        let prompt = '';
-        for await (const chunk of response) {
-          if (chunk.text) prompt += chunk.text;
-        }
+        // Call Gemini API through secure proxy
+        const prompt = await geminiProxyGenerate(GEMINI_MODELS.FLASH, currentPromptRequest);
         return prompt.trim();
       })(),
 
       // Operation 2: Generate next room prompt (1-2s) - runs in parallel!
       (async () => {
-        const ai = getGeminiClient();
-        const response = await ai.models.generateContentStream({
-          model: GEMINI_MODELS.FLASH,
-          contents: nextPromptRequest,
-          config: {},
-        });
-
-        let prompt = '';
-        for await (const chunk of response) {
-          if (chunk.text) prompt += chunk.text;
-        }
+        // Call Gemini API through secure proxy
+        const prompt = await geminiProxyGenerate(GEMINI_MODELS.FLASH, nextPromptRequest);
         return prompt.trim();
       })(),
 
