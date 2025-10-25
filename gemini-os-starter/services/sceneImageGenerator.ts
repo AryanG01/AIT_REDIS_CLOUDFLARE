@@ -10,7 +10,7 @@ import { getCachedImage, cacheImage } from '../utils/imageCache';
 import { generatePixelArt } from './falService';
 import { tileMapToReferenceImage, resizeTileMapReference, combineTileMapsAsPanorama, tileMapToBlob } from '../utils/tileMapToImage';
 import { USE_BIOME_FOR_IMAGES } from '../constants';
-import {getGeminiClient, GEMINI_MODELS} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 export interface SceneGenerationParams {
   roomId: string;

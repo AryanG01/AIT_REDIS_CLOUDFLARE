@@ -10,7 +10,7 @@ import {
 } from '../types/audio';
 import { generateRoomMusic, generateBattleMusic, generateStoryMusic } from './falAudioClient';
 import { audioCache } from './audioCache';
-import {getGeminiClient, GEMINI_MODELS} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 // Cache for LLM-generated music descriptions
 const musicDescriptionCache = new Map<string, { genre: string; mood: string }>();
@@ -35,14 +35,8 @@ Respond ONLY with a JSON object in this exact format (no other text):
   "mood": "mood description with 2-3 adjectives (e.g., 'mysterious, ancient', 'dark, ominous', 'hopeful, bright', etc.)"
 }`;
 
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODELS.FLASH_LITE,
-      contents: prompt,
-      config: {},
-    });
-
-    const text = response.text || '';
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(GEMINI_MODELS.FLASH_LITE, prompt);
 
     // Extract JSON from the response (handle markdown code blocks if present)
     let jsonText = text.trim();

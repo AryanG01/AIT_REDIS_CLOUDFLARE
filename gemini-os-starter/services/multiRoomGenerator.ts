@@ -7,7 +7,7 @@ import { Room, StoryMode } from '../types';
 import { generateRoom } from './roomGenerator';
 import { generatePixelArt } from './falService';
 import { TileMap } from './mapGenerator';
-import {getGeminiClient, GEMINI_MODELS} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 /**
  * Configuration for multi-room batch generation
@@ -230,20 +230,8 @@ export async function generateMultiRoomBatch(
 
   console.log(`[MultiRoomGen] Generating panorama prompt using Gemini 2.5 Pro...`);
 
-  const ai = getGeminiClient();
-  const response = await ai.models.generateContentStream({
-    model: GEMINI_MODELS.PRO,
-    contents: promptRequest,
-    config: {},
-  });
-
-  let imagePrompt = '';
-  for await (const chunk of response) {
-    if (chunk.text) {
-      imagePrompt += chunk.text;
-    }
-  }
-
+  // Call Gemini API through secure proxy
+  let imagePrompt = await geminiProxyGenerate(GEMINI_MODELS.PRO, promptRequest);
   imagePrompt = imagePrompt.trim();
   console.log(`[MultiRoomGen] Prompt: ${imagePrompt.substring(0, 150)}...`);
 

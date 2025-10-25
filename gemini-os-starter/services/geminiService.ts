@@ -7,7 +7,7 @@ import {getSystemPrompt} from '../constants';
 import {InteractionData} from '../types';
 import {BiomeDefinition} from '../types/biomes';
 import {eventLogger} from './eventLogger';
-import {getGeminiClient, GEMINI_MODELS, isApiKeyConfigured, getApiKeyErrorMessage} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 export async function* streamAppContent(
   interactionHistory: InteractionData[],
@@ -25,11 +25,6 @@ export async function* streamAppContent(
   }
 ): AsyncGenerator<string, void, void> {
   const model = GEMINI_MODELS.FLASH_LITE;
-
-  if (!isApiKeyConfigured()) {
-    yield getApiKeyErrorMessage();
-    return;
-  }
 
   if (interactionHistory.length === 0) {
     yield `<div class="p-4 text-orange-700 bg-orange-100 rounded-lg">
@@ -93,21 +88,11 @@ ${JSON.stringify(currentInteraction, null, 1)}
 Return ONLY the JSON object for the game story scene:`;
 
   try {
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContentStream({
-      model: model,
-      contents: fullPrompt,
-      // Removed thinkingConfig to use default (enabled thinking) for higher quality responses
-      // as this is a general app, not a low-latency game AI.
-      config: {},
-    });
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, fullPrompt);
 
-    for await (const chunk of response) {
-      if (chunk.text) {
-        // Ensure text property exists and is not empty
-        yield chunk.text;
-      }
-    }
+    // Yield the full response (streaming removed for security)
+    yield text;
   } catch (error) {
     console.error('Error streaming from Gemini:', error);
     let errorMessage = 'An error occurred while generating content.';
@@ -142,10 +127,6 @@ export async function generateBiomeWithAI(
   storyContext: string
 ): Promise<BiomeDefinition> {
   const model = GEMINI_MODELS.FLASH_LITE;
-
-  if (!isApiKeyConfigured()) {
-    throw new Error('API_KEY not configured');
-  }
 
   const prompt = `Create a game biome definition for "${biomeName}" in this story context: "${storyContext}"
 
@@ -182,14 +163,8 @@ Return ONLY the JSON object, nothing else.`;
   try {
     console.log(`[GeminiService] Generating biome: ${biomeName}`);
 
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    const text = response.text || '';
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, prompt);
 
     // Try to extract JSON from response (in case AI wrapped it in markdown)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -232,11 +207,6 @@ export async function generateBiomeProgression(
   // CRITICAL: Recreation mode uses only 5 rooms
   const roomCount = numRooms ?? (storyMode === 'recreation' ? 5 : 20);
   const model = GEMINI_MODELS.FLASH_LITE;
-
-  if (!isApiKeyConfigured()) {
-    // Fallback to default progression
-    return Array(roomCount).fill('forest');
-  }
 
   const contextDescription = storyContext
     ? `Story: "${storyContext.slice(0, 500)}..." (${storyMode} mode - ${roomCount} rooms)`
@@ -286,14 +256,8 @@ ${storyMode === 'recreation' ? `Example for "Lionel Messi winning World Cup" (5 
   try {
     console.log('[GeminiService] Generating biome progression...');
 
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    const text = response.text || '';
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, prompt);
 
     // Extract JSON array
     const jsonMatch = text.match(/\[[\s\S]*?\]/);

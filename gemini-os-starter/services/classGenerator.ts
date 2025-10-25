@@ -5,7 +5,7 @@
 /* tslint:disable */
 import {CharacterClass, CHARACTER_CLASSES} from '../characterClasses';
 import {StoryMode} from '../types';
-import {getGeminiClient, GEMINI_MODELS, isApiKeyConfigured} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS, isApiKeyConfigured} from './geminiProxyClient';
 
 const CHARACTER_EXTRACTION_PROMPT = (storyContext: string) => `
 You are a game design AI. Based on the story provided, extract 5 main characters from the story that the player could play AS.
@@ -250,14 +250,9 @@ async function attemptClassGeneration(
   try {
     console.log(`[ClassGenerator] Attempt ${attemptNumber}/3: Generating classes...`);
 
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    let jsonText = response.text.trim();
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, prompt);
+    let jsonText = text.trim();
 
     if (attemptNumber === 1) {
       console.log('[ClassGenerator] Raw response:', jsonText.substring(0, 500));

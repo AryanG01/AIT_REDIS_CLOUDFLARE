@@ -22,3 +22,10 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
+
+/**
+ * Get the base API URL
+ */
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import {getGeminiClient, GEMINI_MODELS, isApiKeyConfigured} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS, isApiKeyConfigured} from './geminiProxyClient';
 
 export interface StoryBeat {
   roomNumber: number;
@@ -167,14 +167,9 @@ export async function analyzeStoryStructure(storyContext: string): Promise<Story
   const model = GEMINI_MODELS.FLASH_EXP;
 
   try {
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: STORY_ANALYSIS_PROMPT(storyContext),
-      config: {},
-    });
-
-    let jsonText = response.text.trim();
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, STORY_ANALYSIS_PROMPT(storyContext));
+    let jsonText = text.trim();
     console.log('[StoryStructure] Raw response:', jsonText.substring(0, 300));
 
     // Remove markdown code blocks if present

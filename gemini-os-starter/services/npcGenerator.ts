@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
-import {getGeminiClient, GEMINI_MODELS, trackApiRequest} from './config/geminiClient';
+import {geminiProxyGenerate, GEMINI_MODELS} from './geminiProxyClient';
 
 /**
  * Generate a story-aware NPC description for a given room
@@ -45,14 +45,9 @@ Examples: "wise mentor", "rival competitor", "supportive coach", "strategic advi
 NPC Description:`;
 
   try {
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    let description = (response.text || 'traveler').trim();
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, prompt);
+    let description = (text || 'traveler').trim();
 
     // Clean up the response
     description = description.replace(/^["']|["']$/g, ''); // Remove quotes
@@ -106,15 +101,9 @@ Examples: "aggressive defender", "rival striker", "challenging obstacle", "fierc
 Enemy Description:`;
 
   try {
-    trackApiRequest(model); // Track for rate limiting
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    let description = (response.text || `hostile creature, ${biome} monster`).trim();
+    // Call Gemini API through secure proxy
+    const text = await geminiProxyGenerate(model, prompt);
+    let description = (text || `hostile creature, ${biome} monster`).trim();
 
     description = description.replace(/^["']|["']$/g, '');
     description = description.split('\n')[0];
@@ -160,15 +149,9 @@ Examples:
 Interaction Text:`;
 
   try {
-    trackApiRequest(model); // Track for rate limiting
-    const ai = getGeminiClient();
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {},
-    });
-
-    let text = (response.text || 'A traveler rests here').trim();
+    // Call Gemini API through secure proxy
+    const responseText = await geminiProxyGenerate(model, prompt);
+    let text = (responseText || 'A traveler rests here').trim();
     text = text.replace(/^["']|["']$/g, '');
     text = text.split('\n')[0];
     text = text.substring(0, 120);

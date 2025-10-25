@@ -9,6 +9,7 @@ import type { Env } from '../lib/redis';
 
 // Import route handlers
 import { handleFalProxy } from './fal-proxy';
+import { handleGeminiProxy } from './gemini-proxy';
 import { handleSessionAPI } from './session';
 import { handleCacheAPI } from './cache';
 import { handleAnalyticsAPI } from './analytics';
@@ -39,6 +40,9 @@ app.get('/api/health', (c) => {
 
 // FAL API Proxy (replaces Vercel function)
 app.post('/api/fal-proxy', handleFalProxy);
+
+// Gemini API Proxy
+app.post('/api/gemini-proxy', handleGeminiProxy);
 
 // Session Management API
 app.post('/api/session/create', handleSessionAPI);
