@@ -175,29 +175,29 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
       } finally {
         console.log('[VisualBattleScene] loadImages finished.');
         setGeneratingImages(false);
-
-        // Play speech only after images are fully loaded
-        if (autoPlaySpeech && sceneData?.scene && !speechPlayed) {
-          // Stop any currently playing speech to prevent overlap
-          speechService.stopSpeech();
-
-          // Defer speech slightly to ensure rendering is complete
-          const deferredSpeak = () => {
-            speechService.speak(sceneData.scene, 'narrator', 'neutral', true);
-            setSpeechPlayed(true);
-          };
-
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(deferredSpeak, { timeout: 200 });
-          } else {
-            setTimeout(deferredSpeak, 100);
-          }
-        }
       }
     };
 
     loadImages();
   }, [sceneData, autoPlaySpeech, speechPlayed]);
+
+  // Play speech AFTER rendering completes (separate from image loading)
+  useEffect(() => {
+    if (!generatingImages && sceneData?.scene && autoPlaySpeech && !speechPlayed && images.background) {
+      // Wait for React to finish rendering the new scene
+      // Use multiple animation frames to ensure DOM is fully updated and painted
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            console.log('[VisualBattleScene] Playing speech after render complete');
+            speechService.stopSpeech();
+            speechService.speak(sceneData.scene, 'narrator', 'neutral', true);
+            setSpeechPlayed(true);
+          }, 500); // Extra 500ms delay to ensure screen is fully visible
+        });
+      });
+    }
+  }, [generatingImages, sceneData?.scene, autoPlaySpeech, speechPlayed, images.background]);
 
   // Delay showing loading screen to allow animation overlay to complete
   useEffect(() => {
@@ -261,29 +261,29 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
 
         {/* Story Text - Bottom Panel (no choices, just scene) */}
         <div
-          className="p-4 md:p-6 lg:p-8 overflow-y-auto"
+          className="p-3 md:p-4 lg:p-5 overflow-y-auto"
           style={{
             background: 'linear-gradient(to top, #1a1a1a 0%, rgba(26,26,26,0.95) 80%, transparent 100%)',
             borderTop: '4px solid #5c3d2e',
-            maxHeight: '45vh'
+            maxHeight: '40vh'
           }}
         >
           {/* Scene Description */}
           <div className="max-w-4xl mx-auto">
             <div
-              className="p-4 md:p-6"
+              className="p-3 md:p-4"
               style={{
                 backgroundColor: 'rgba(61,40,23,0.95)',
-                border: '4px solid #3d2817',
+                border: '3px solid #3d2817',
                 borderRadius: '4px',
-                boxShadow: '0 6px 0 #3d2817, inset 0 4px 0 rgba(255,255,255,0.1)'
+                boxShadow: '0 4px 0 #3d2817, inset 0 3px 0 rgba(255,255,255,0.1)'
               }}
             >
               <p
-                className="text-base md:text-lg lg:text-xl"
+                className="text-sm md:text-base lg:text-lg"
                 style={{
                   color: '#f4e8d0',
-                  lineHeight: '1.8',
+                  lineHeight: '1.6',
                   textAlign: 'center',
                   fontWeight: '500'
                 }}
@@ -332,17 +332,17 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
 
       {/* Story Text & Choices - Bottom Panel */}
       <div
-        className="p-4 md:p-6 lg:p-8 overflow-y-auto"
+        className="p-3 md:p-4 lg:p-5 overflow-y-auto"
         style={{
           background: 'linear-gradient(to top, #1a1a1a 0%, rgba(26,26,26,0.95) 80%, transparent 100%)',
           borderTop: '4px solid #5c3d2e',
-          maxHeight: '45vh'
+          maxHeight: '40vh'
         }}
       >
         {/* Scene Description */}
-        <div className="max-w-4xl mx-auto mb-4 md:mb-6">
-          <div className="bg-black/70 backdrop-blur-md rounded-xl p-4 md:p-6 border-2 border-purple-500/50">
-            <div className="text-gray-100 text-base md:text-lg lg:text-xl leading-relaxed text-center font-medium">
+        <div className="max-w-4xl mx-auto mb-2 md:mb-3">
+          <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 md:p-4 border-2 border-purple-500/50">
+            <div className="text-gray-100 text-sm md:text-base lg:text-lg leading-relaxed text-center font-medium">
               {sceneData.scene}
             </div>
           </div>
@@ -394,27 +394,27 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
                 <button
                   key={choice.id}
                   onClick={() => onChoice(choice.id, choice.type, choice.value)}
-                  className="transition-all active:translate-y-2 text-sm md:text-base"
+                  className="transition-all active:translate-y-1 text-xs md:text-sm"
                   style={{
                     backgroundColor: buttonStyle.backgroundColor,
-                    border: `4px solid ${buttonStyle.borderColor}`,
+                    border: `3px solid ${buttonStyle.borderColor}`,
                     borderRadius: '4px',
-                    boxShadow: `0 6px 0 ${buttonStyle.shadowColor}`,
+                    boxShadow: `0 4px 0 ${buttonStyle.shadowColor}`,
                     color: '#f4e8d0',
                     fontWeight: 'bold',
-                    letterSpacing: '1px',
-                    padding: '12px 16px',
+                    letterSpacing: '0.5px',
+                    padding: '8px 12px',
                     cursor: 'pointer',
-                    minWidth: '140px'
+                    minWidth: '120px'
                   }}
                   disabled={generatingImages}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = `0 10px 0 ${buttonStyle.shadowColor}`;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 6px 0 ${buttonStyle.shadowColor}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = `0 6px 0 ${buttonStyle.shadowColor}`;
+                    e.currentTarget.style.boxShadow = `0 4px 0 ${buttonStyle.shadowColor}`;
                   }}
                 >
                   <div className="flex items-center justify-center">

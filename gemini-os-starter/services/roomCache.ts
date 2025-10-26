@@ -4,6 +4,7 @@
  */
 /* tslint:disable */
 import { Room } from '../types';
+import { getApiBaseUrl } from './apiConfig';
 
 const ROOM_CACHE_KEY = 'roguelike_room_cache';
 const CACHE_VERSION = 2;
@@ -93,7 +94,7 @@ export class RoomCache {
     // L2: Check KV cache via API
     try {
       const cacheKey = `${this.storySeed}:${roomId}`;
-      const response = await fetch(`/api/cache/room/${encodeURIComponent(cacheKey)}`);
+      const response = await fetch(`${getApiBaseUrl()}/api/cache/room/${encodeURIComponent(cacheKey)}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -125,7 +126,7 @@ export class RoomCache {
     // Optionally save to KV for cross-user sharing
     if (saveToKV) {
       try {
-        await fetch('/api/cache/room', {
+        await fetch(`${getApiBaseUrl()}/api/cache/room`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

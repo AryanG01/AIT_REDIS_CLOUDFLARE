@@ -64,48 +64,49 @@ export const SceneGenerationLoading: React.FC<SceneGenerationLoadingProps> = ({
             borderRadius: '4px'
           }}
         >
-          {/* Icon stages and progress bar container */}
-          <div style={{ paddingLeft: '16px', paddingRight: '16px' }}>
-            <div className="flex justify-between items-center mb-3">
-              {stages.map((s, index) => {
-                const isActive = index === currentIndex;
-                const isCompleted = index < currentIndex;
+          {/* Icon stages */}
+          <div className="flex justify-between items-center mb-3" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+            {stages.map((s, index) => {
+              const isActive = index === currentIndex;
+              const isCompleted = index < currentIndex;
 
-                return (
-                  <div key={s.id} className="flex items-center" style={{ flex: 1 }}>
-                    <div
-                      className={isActive ? 'animate-pulse' : ''}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        backgroundColor: isCompleted ? '#6fa85c' : isActive ? '#d4a574' : '#8b6f47',
-                        border: '3px solid #3d2817',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '16px'
-                      }}
-                    >
-                      {isCompleted ? '✓' : s.emoji}
-                    </div>
-                    {index < stages.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '4px',
-                          backgroundColor: isCompleted ? '#6fa85c' : '#8b6f47',
-                          marginLeft: '8px',
-                          marginRight: '8px'
-                        }}
-                      />
-                    )}
+              return (
+                <React.Fragment key={s.id}>
+                  <div
+                    className={isActive ? 'animate-pulse' : ''}
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      backgroundColor: isCompleted ? '#6fa85c' : isActive ? '#d4a574' : '#8b6f47',
+                      border: '3px solid #3d2817',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      flexShrink: 0
+                    }}
+                  >
+                    {isCompleted ? '✓' : s.emoji}
                   </div>
-                );
-              })}
-            </div>
+                  {index < stages.length - 1 && (
+                    <div
+                      style={{
+                        flex: 1,
+                        height: '4px',
+                        backgroundColor: isCompleted ? '#6fa85c' : '#8b6f47',
+                        marginLeft: '8px',
+                        marginRight: '8px'
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
 
-            {/* Progress bar */}
+          {/* Progress bar */}
+          <div style={{ paddingLeft: '16px', paddingRight: '16px' }}>
             <div
               style={{
                 width: '100%',
