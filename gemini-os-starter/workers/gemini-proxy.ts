@@ -17,17 +17,17 @@ import { AnalyticsManager } from '../lib/redis';
 export async function handleGeminiProxy(c: Context<{ Bindings: Env }>) {
   const redis = createRedisClient(c.env);
 
-  // Rate limiting (15 req/min for Gemini Flash models)
-  const rateLimitResponse = await rateLimitMiddleware(
-    redis,
-    c.req.raw,
-    'gemini-proxy',
-    { requests: 15, window: 60 } // 15 requests per minute
-  );
-
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
+  // Rate limiting DISABLED for development
+  // TODO: Re-enable for production with higher limits (e.g., 100 req/min)
+  // const rateLimitResponse = await rateLimitMiddleware(
+  //   redis,
+  //   c.req.raw,
+  //   'gemini-proxy',
+  //   { maxRequests: 100, windowSeconds: 60 }
+  // );
+  // if (rateLimitResponse) {
+  //   return rateLimitResponse;
+  // }
 
   try {
     const body = await c.req.json();

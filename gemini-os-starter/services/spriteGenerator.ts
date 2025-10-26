@@ -63,9 +63,12 @@ async function removeBackground(imageUrl: string): Promise<string> {
       logs: false,
     });
 
-    const processedUrl = result?.image?.url;
+    console.log('[SpriteGen] Background removal result:', JSON.stringify(result).slice(0, 500));
+    const processedUrl = result?.data?.image?.url;
     if (!processedUrl) {
-      console.error('[SpriteGen] No URL in background removal response:', result);
+      console.error('[SpriteGen] No URL in background removal response. Full result:', JSON.stringify(result));
+      console.error('[SpriteGen] Tried path: result.data.image.url');
+      console.error('[SpriteGen] Available keys in result.data:', Object.keys(result?.data || {}));
       return imageUrl;
     }
 
@@ -116,10 +119,16 @@ export async function generateSprite(
       },
     });
 
-    const imageUrl = result?.images?.[0]?.url;
+    console.log('[SpriteGen] Full result structure:', JSON.stringify(result).slice(0, 1000));
+    console.log('[SpriteGen] Checking path result.data.images[0].url:', result?.data?.images?.[0]?.url);
+
+    const imageUrl = result?.data?.images?.[0]?.url;
 
     if (!imageUrl) {
-      console.error('[SpriteGen] No image URL in response:', result);
+      console.error('[SpriteGen] No image URL in response. Full result:', JSON.stringify(result));
+      console.error('[SpriteGen] Tried path: result.data.images[0].url');
+      console.error('[SpriteGen] Available keys in result:', Object.keys(result || {}));
+      console.error('[SpriteGen] Available keys in result.data:', Object.keys(result?.data || {}));
       throw new Error('Failed to get image URL from flux');
     }
 

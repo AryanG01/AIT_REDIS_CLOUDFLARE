@@ -38,15 +38,15 @@ Top-down RPG perspective, cohesive retro pixel art aesthetic with detailed envir
       logs: true,
     });
 
-    if (!result?.images?.[0]?.url) {
+    if (!result?.data?.images?.[0]?.url) {
       throw new Error('No image generated');
     }
 
     console.log('[SceneComposer] Scene composed successfully');
 
     return {
-      url: result.images[0].url,
-      description: result.description || prompt,
+      url: result.data.images[0].url,
+      description: result.data.description || prompt,
     };
   } catch (error) {
     console.error('[SceneComposer] Failed to compose scene:', error);
@@ -76,15 +76,15 @@ Integrate the characters naturally into the ${biome} environment with atmospheri
       logs: true,
     });
 
-    if (!result?.images?.[0]?.url) {
+    if (!result?.data?.images?.[0]?.url) {
       throw new Error('No image generated');
     }
 
     console.log('[SceneComposer] Scene with background composed successfully');
 
     return {
-      url: result.images[0].url,
-      description: result.description || prompt,
+      url: result.data.images[0].url,
+      description: result.data.description || prompt,
     };
   } catch (error) {
     console.error('[SceneComposer] Failed to compose scene with background:', error);

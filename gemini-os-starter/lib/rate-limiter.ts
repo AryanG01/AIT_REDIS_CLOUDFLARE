@@ -126,10 +126,9 @@ export class RateLimiter {
     // Increment counter
     const count = await this.redis.incr(key);
 
-    // Set expiry on first request
-    if (count === 1) {
-      await this.redis.expire(key, config.windowSeconds);
-    }
+    // Always set/refresh expiry to avoid race conditions
+    // This ensures the key doesn't persist forever if count === 1 check is missed
+    await this.redis.expire(key, config.windowSeconds);
 
     const allowed = count <= config.maxRequests;
     const remaining = Math.max(0, config.maxRequests - count);

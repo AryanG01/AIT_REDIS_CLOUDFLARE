@@ -15,7 +15,7 @@ export interface Env {
   ROOM_CACHE: KVNamespace;
   AUDIO_CACHE: KVNamespace;
   FAL_KEY: string;
-  GEMINI_API_KEY?: string;
+  GEMINI_API_KEY: string;
 }
 
 /**

@@ -17,17 +17,17 @@ import { AnalyticsManager } from '../lib/redis';
 export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
   const redis = createRedisClient(c.env);
 
-  // Rate limiting
-  const rateLimitResponse = await rateLimitMiddleware(
-    redis,
-    c.req.raw,
-    'fal-proxy',
-    RateLimitPresets.FAL_PROXY
-  );
-
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
+  // Rate limiting DISABLED for development
+  // TODO: Re-enable for production with higher limits (e.g., 100 req/min)
+  // const rateLimitResponse = await rateLimitMiddleware(
+  //   redis,
+  //   c.req.raw,
+  //   'fal-proxy',
+  //   { maxRequests: 100, windowSeconds: 60 }
+  // );
+  // if (rateLimitResponse) {
+  //   return rateLimitResponse;
+  // }
 
   try {
     const body = await c.req.json();
@@ -53,29 +53,47 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input,
+        ...input,  // Spread input params to top level instead of nesting
         webhook_url: null,
         enable_queue: true,
       }),
     });
 
+    // Get response text first for better error handling
+    const responseText = await falResponse.text();
+
+    // Log response for debugging
+    console.log(`[FAL Proxy] Response status: ${falResponse.status}, text preview:`, responseText.slice(0, 500));
+
     if (!falResponse.ok) {
-      const errorText = await falResponse.text();
-      console.error('[FAL Proxy] Error:', errorText);
+      console.error('[FAL Proxy] Error response:', responseText);
 
       return c.json({
         error: 'FAL API request failed',
-        message: errorText,
+        message: responseText,
       }, falResponse.status);
     }
 
-    const queueResponse = await falResponse.json() as any;
+    // Parse JSON with error handling
+    let queueResponse: any;
+    try {
+      queueResponse = JSON.parse(responseText);
+    } catch (jsonError: any) {
+      console.error('[FAL Proxy] JSON parse error:', jsonError.message, 'Response:', responseText.slice(0, 500));
+      return c.json({
+        error: 'Failed to parse FAL API response',
+        message: `JSON parse error: ${jsonError.message}`,
+        rawResponse: responseText.slice(0, 1000),
+      }, 500);
+    }
 
     // Poll for result
     const requestId = queueResponse.request_id;
-    if (!requestId) {
+    const statusUrl = queueResponse.status_url;
+
+    if (!requestId || !statusUrl) {
       return c.json({
-        error: 'No request_id received from FAL',
+        error: 'No request_id or status_url received from FAL',
         data: queueResponse,
       }, 500);
     }
@@ -86,16 +104,76 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
     const maxAttempts = 60;
 
     while (attempts < maxAttempts) {
-      const statusResponse = await fetch(`https://queue.fal.run/${endpoint}/requests/${requestId}/status`, {
+      // Use the status_url provided by FAL instead of constructing it manually
+      const statusResponse = await fetch(statusUrl, {
         headers: {
           'Authorization': `Key ${c.env.FAL_KEY}`,
         },
       });
 
-      const status = await statusResponse.json() as any;
+      // Check if response is OK before parsing JSON
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text();
+        console.error('[FAL Proxy] Status check error:', errorText);
+        return c.json({
+          error: 'FAL API status check failed',
+          message: errorText,
+        }, statusResponse.status);
+      }
+
+      // Get response text first for better error handling
+      const responseText = await statusResponse.text();
+      let status: any;
+      try {
+        status = JSON.parse(responseText);
+      } catch (jsonError: any) {
+        console.error('[FAL Proxy] JSON parse error:', jsonError.message, 'Response:', responseText.slice(0, 200));
+        return c.json({
+          error: 'Failed to parse FAL API response',
+          message: `JSON parse error: ${jsonError.message}`,
+        }, 500);
+      }
 
       if (status.status === 'COMPLETED') {
-        result = status.response_data || status;
+        // FAL API requires fetching from response_url to get actual image data
+        const responseUrl = status.response_url;
+        console.log('[FAL Proxy] Request completed, fetching result from:', responseUrl);
+
+        if (!responseUrl) {
+          console.error('[FAL Proxy] No response_url in completed status:', status);
+          return c.json({
+            error: 'No response_url in FAL status',
+            data: status,
+          }, 500);
+        }
+
+        // Fetch the actual result from response_url
+        const resultResponse = await fetch(responseUrl, {
+          headers: {
+            'Authorization': `Key ${c.env.FAL_KEY}`,
+          },
+        });
+
+        if (!resultResponse.ok) {
+          const errorText = await resultResponse.text();
+          console.error('[FAL Proxy] Failed to fetch result:', errorText);
+          return c.json({
+            error: 'Failed to fetch FAL result',
+            message: errorText,
+          }, resultResponse.status);
+        }
+
+        const resultText = await resultResponse.text();
+        try {
+          result = JSON.parse(resultText);
+          console.log('[FAL Proxy] Fetched result structure:', JSON.stringify(result).slice(0, 500));
+        } catch (jsonError: any) {
+          console.error('[FAL Proxy] JSON parse error on result:', jsonError.message);
+          return c.json({
+            error: 'Failed to parse FAL result',
+            message: `JSON parse error: ${jsonError.message}`,
+          }, 500);
+        }
         break;
       } else if (status.status === 'FAILED') {
         return c.json({
@@ -118,6 +196,12 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
 
     // Track successful generation
     await analytics.incrementCounter('fal_api_success', 1);
+
+    // DEBUG: Log response structure for different endpoints
+    console.log('[FAL Proxy] Response structure for endpoint:', endpoint);
+    console.log('[FAL Proxy] Result keys:', Object.keys(result || {}));
+    console.log('[FAL Proxy] Full result:', JSON.stringify(result).slice(0, 1000));
+    console.log('[FAL Proxy] Returning to client:', JSON.stringify({success: true, data: result}).slice(0, 500));
 
     return c.json({
       success: true,

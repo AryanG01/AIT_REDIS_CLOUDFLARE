@@ -203,10 +203,21 @@ The reference image is an INPAINTING MASK following industry standards where:
     console.log('[falService] Raw result from fal.ai:', result);
 
     // Defensive access to the image URL
-    const imageUrl = result?.images?.[0]?.url;
+    // Worker wraps response in {success: true, data: <FAL_RESPONSE>}
+    // Client wraps again in {data: <FAL_RESPONSE>}
+    // So final path is result.data.images[0].url OR result.data.image.url
+    let imageUrl = result?.data?.images?.[0]?.url;
+
+    // Fallback: Some endpoints return {image: {url: ...}} instead of {images: [{url: ...}]}
+    if (!imageUrl) {
+      imageUrl = result?.data?.image?.url;
+    }
 
     if (!imageUrl) {
       console.error('[falService] Image URL not found in fal.ai response. Full response:', result);
+      console.error('[falService] Tried paths: result.data.images[0].url and result.data.image.url');
+      console.error('[falService] Available keys in result:', Object.keys(result || {}));
+      console.error('[falService] Available keys in result.data:', Object.keys(result?.data || {}));
       throw new Error('Image URL not found in fal.ai response.');
     }
 

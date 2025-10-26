@@ -102,11 +102,6 @@ export const useBackgroundMusic = (
    * Play/resume audio - prioritizes main theme if available
    */
   const play = useCallback(() => {
-    if (!enabled) {
-      console.log('[useBackgroundMusic] Music disabled, not playing');
-      return;
-    }
-
     console.log('[useBackgroundMusic] Playing/resuming audio...');
 
     // Prioritize main theme (the primary audio layer)
@@ -128,7 +123,7 @@ export const useBackgroundMusic = (
       });
       setIsPlaying(true);
     }
-  }, [enabled]);
+  }, []);
 
   /**
    * Pause ALL audio (main theme, overlay, and legacy current track)
