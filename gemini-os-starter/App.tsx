@@ -145,16 +145,15 @@ const App: React.FC = () => {
       // Stop any currently playing speech
       speechService.stopSpeech();
 
-      // OPTIMIZATION: Defer speech to idle time after room transition
-      const deferredSpeak = () => {
-        speechService.speak(currentRoom.description, 'narrator', 'mysterious', true);
-      };
-
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(deferredSpeak, { timeout: 500 });
-      } else {
-        setTimeout(deferredSpeak, 300);
-      }
+      // Wait for room to fully render before playing speech
+      // Use multiple animation frames to ensure canvas is fully painted
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            speechService.speak(currentRoom.description, 'narrator', 'mysterious', true);
+          }, 800); // Extra delay to ensure room canvas is fully visible and rendered
+        });
+      });
     }
   }, [gameState.currentRoomId, gameState.isInGame, showAIDialog, gameState.battleState]);
 

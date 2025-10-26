@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* tslint:disable */
+import { getApiBaseUrl } from './apiConfig';
 
 export interface GameEvent {
   id: string;
@@ -153,7 +154,7 @@ class EventLoggerService {
     this.pendingEvents = []; // Clear pending immediately
 
     try {
-      await fetch('/api/analytics/events', {
+      await fetch(`${getApiBaseUrl()}/api/analytics/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
