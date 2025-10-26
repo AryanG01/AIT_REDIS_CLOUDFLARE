@@ -64,65 +64,68 @@ export const SceneGenerationLoading: React.FC<SceneGenerationLoadingProps> = ({
             borderRadius: '4px'
           }}
         >
-          <div className="flex justify-between items-center mb-3">
-            {stages.map((s, index) => {
-              const isActive = index === currentIndex;
-              const isCompleted = index < currentIndex;
+          {/* Icon stages and progress bar container */}
+          <div style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+            <div className="flex justify-between items-center mb-3">
+              {stages.map((s, index) => {
+                const isActive = index === currentIndex;
+                const isCompleted = index < currentIndex;
 
-              return (
-                <div key={s.id} className="flex items-center" style={{ flex: 1 }}>
-                  <div
-                    className={isActive ? 'animate-pulse' : ''}
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      backgroundColor: isCompleted ? '#6fa85c' : isActive ? '#d4a574' : '#8b6f47',
-                      border: '3px solid #3d2817',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '16px'
-                    }}
-                  >
-                    {isCompleted ? '✓' : s.emoji}
-                  </div>
-                  {index < stages.length - 1 && (
+                return (
+                  <div key={s.id} className="flex items-center" style={{ flex: 1 }}>
                     <div
+                      className={isActive ? 'animate-pulse' : ''}
                       style={{
-                        flex: 1,
-                        height: '4px',
-                        backgroundColor: isCompleted ? '#6fa85c' : '#8b6f47',
-                        marginLeft: '8px',
-                        marginRight: '8px'
+                        width: '32px',
+                        height: '32px',
+                        backgroundColor: isCompleted ? '#6fa85c' : isActive ? '#d4a574' : '#8b6f47',
+                        border: '3px solid #3d2817',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '16px'
                       }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    >
+                      {isCompleted ? '✓' : s.emoji}
+                    </div>
+                    {index < stages.length - 1 && (
+                      <div
+                        style={{
+                          flex: 1,
+                          height: '4px',
+                          backgroundColor: isCompleted ? '#6fa85c' : '#8b6f47',
+                          marginLeft: '8px',
+                          marginRight: '8px'
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-          {/* Progress bar */}
-          <div
-            style={{
-              width: '100%',
-              height: '20px',
-              backgroundColor: '#8b6f47',
-              border: '3px solid #3d2817',
-              borderRadius: '4px',
-              overflow: 'hidden',
-              boxShadow: 'inset 2px 2px 0 rgba(0,0,0,0.2)'
-            }}
-          >
+            {/* Progress bar */}
             <div
-              className="h-full transition-all duration-500"
               style={{
-                width: `${currentStage.progress}%`,
-                backgroundColor: '#6fa85c',
-                boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2)'
+                width: '100%',
+                height: '20px',
+                backgroundColor: '#8b6f47',
+                border: '3px solid #3d2817',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                boxShadow: 'inset 2px 2px 0 rgba(0,0,0,0.2)'
               }}
-            ></div>
+            >
+              <div
+                className="h-full transition-all duration-500"
+                style={{
+                  width: `${currentStage.progress}%`,
+                  backgroundColor: '#6fa85c',
+                  boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2)'
+                }}
+              ></div>
+            </div>
           </div>
         </div>
 

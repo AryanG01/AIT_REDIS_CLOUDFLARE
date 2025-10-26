@@ -131,25 +131,8 @@ const App: React.FC = () => {
   // Get current room
   const currentRoom = gameState.rooms.get(gameState.currentRoomId);
 
-  // Auto-play scene narration when dialogue appears
-  useEffect(() => {
-    if (sceneData?.scene && showAIDialog) {
-      // Stop any currently playing speech to prevent overlap
-      speechService.stopSpeech();
-
-      // OPTIMIZATION: Defer speech to idle time to prevent blocking interactions
-      // Uses requestIdleCallback if available, falls back to setTimeout
-      const deferredSpeak = () => {
-        speechService.speak(sceneData.scene, 'narrator', 'neutral', true);
-      };
-
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(deferredSpeak, { timeout: 200 });
-      } else {
-        setTimeout(deferredSpeak, 100);
-      }
-    }
-  }, [sceneData?.scene, showAIDialog]);
+  // Speech is now handled inside VisualBattleScene after images are loaded
+  // This prevents audio from starting before the scene is fully rendered
 
   // Auto-play room descriptions when entering new rooms
   useEffect(() => {
@@ -646,14 +629,58 @@ const App: React.FC = () => {
         isGeneratingRoom: false,
       }));
 
-      setRoomGenerationProgress(100);
-      console.log('[App] Initial room pair (0 + 1) generated successfully, game starting!');
+      setRoomGenerationProgress(70);
+      setRoomGenerationStep('Pre-generating next rooms...');
+      console.log('[App] Initial room pair (0 + 1) generated, pre-generating rooms 2 & 3...');
 
-      // Immediately start pre-generating rooms 2 & 3 in the background
-      // This ensures they're ready when player reaches room 1
-      setTimeout(() => {
-        triggerRoomPairPreGeneration(0, room0.description);
-      }, 100); // Small delay to ensure state is updated
+      // BLOCKING: Pre-generate rooms 2 & 3 BEFORE starting the game
+      // This ensures a smooth experience without loading screens during early gameplay
+      const biomeKey2 = gameState.biomeProgression[2] || 'forest';
+      const biomeKey3 = gameState.biomeProgression[3] || 'forest';
+
+      const storyBeat2 = gameState.storyRecreation
+        ? getStoryBeat(gameState.storyRecreation.storyStructure, 2)
+        : undefined;
+      const storyBeat3 = gameState.storyRecreation
+        ? getStoryBeat(gameState.storyRecreation.storyStructure, 3)
+        : undefined;
+
+      try {
+        const { currentRoom: room2, nextRoom: room3 } = await generateRoomPair(
+          'room_2',
+          'room_3',
+          gameState.storySeed,
+          2,
+          3,
+          biomeKey2,
+          biomeKey3,
+          gameState.storyContext,
+          gameState.storyMode,
+          room0.description,
+          storyBeat2,
+          storyBeat3
+        );
+
+        setRoomGenerationProgress(85);
+        setRoomGenerationStep('Caching pre-generated rooms...');
+
+        // Save rooms 2 & 3 to cache
+        await roomCache.saveRoomMultiTier(room2, true);
+        await roomCache.saveRoomMultiTier(room3, true);
+
+        // Add rooms 2 & 3 to the rooms map
+        rooms.set('room_2', room2);
+        rooms.set('room_3', room3);
+
+        console.log('[App] Rooms 2 & 3 pre-generated and ready');
+      } catch (error) {
+        console.error('[App] Failed to pre-generate rooms 2 & 3:', error);
+        // Continue anyway - they'll be generated on-demand if needed
+      }
+
+      setRoomGenerationProgress(100);
+      setRoomGenerationStep('Ready to begin!');
+      console.log('[App] All initial rooms ready, game starting!');
     } catch (error) {
       console.error('[App] Failed to generate initial rooms:', error);
       setError('Failed to generate initial rooms. Please try again.');

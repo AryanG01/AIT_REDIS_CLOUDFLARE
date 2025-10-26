@@ -8,6 +8,7 @@ import {generateBattleScene, GeneratedImage} from '../services/falService';
 import {getCachedImage, cacheImage} from '../utils/imageCache';
 import {composeInteractionScene} from '../services/sceneComposer';
 import {SceneGenerationLoading} from './SceneGenerationLoading';
+import {speechService} from '../services/speechService';
 
 export interface BattleSceneData {
   scene: string;
@@ -36,6 +37,7 @@ interface VisualBattleSceneProps {
   characterClass?: string;
   characterSprite?: string;
   onSceneGenerated?: (imageUrl: string) => void;
+  autoPlaySpeech?: boolean;
 }
 
 export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
@@ -45,6 +47,7 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
   characterClass,
   characterSprite,
   onSceneGenerated,
+  autoPlaySpeech = true,
 }) => {
   const [images, setImages] = useState<{
     background?: string;
@@ -54,11 +57,13 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
   const [generatingImages, setGeneratingImages] = useState(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [previousSceneData, setPreviousSceneData] = useState<BattleSceneData | null>(null);
+  const [speechPlayed, setSpeechPlayed] = useState(false);
 
-  // Store previous scene data when we have valid data
+  // Store previous scene data when we have valid data and reset speech state
   useEffect(() => {
     if (sceneData) {
       setPreviousSceneData(sceneData);
+      setSpeechPlayed(false); // Reset for new scene
     }
   }, [sceneData]);
 
@@ -170,11 +175,29 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
       } finally {
         console.log('[VisualBattleScene] loadImages finished.');
         setGeneratingImages(false);
+
+        // Play speech only after images are fully loaded
+        if (autoPlaySpeech && sceneData?.scene && !speechPlayed) {
+          // Stop any currently playing speech to prevent overlap
+          speechService.stopSpeech();
+
+          // Defer speech slightly to ensure rendering is complete
+          const deferredSpeak = () => {
+            speechService.speak(sceneData.scene, 'narrator', 'neutral', true);
+            setSpeechPlayed(true);
+          };
+
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(deferredSpeak, { timeout: 200 });
+          } else {
+            setTimeout(deferredSpeak, 100);
+          }
+        }
       }
     };
 
     loadImages();
-  }, [sceneData]);
+  }, [sceneData, autoPlaySpeech, speechPlayed]);
 
   // Delay showing loading screen to allow animation overlay to complete
   useEffect(() => {
@@ -238,27 +261,28 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
 
         {/* Story Text - Bottom Panel (no choices, just scene) */}
         <div
-          className="p-8"
+          className="p-4 md:p-6 lg:p-8 overflow-y-auto"
           style={{
             background: 'linear-gradient(to top, #1a1a1a 0%, rgba(26,26,26,0.95) 80%, transparent 100%)',
-            borderTop: '4px solid #5c3d2e'
+            borderTop: '4px solid #5c3d2e',
+            maxHeight: '45vh'
           }}
         >
           {/* Scene Description */}
           <div className="max-w-4xl mx-auto">
             <div
+              className="p-4 md:p-6"
               style={{
                 backgroundColor: 'rgba(61,40,23,0.95)',
-                border: '6px solid #3d2817',
+                border: '4px solid #3d2817',
                 borderRadius: '4px',
-                padding: '24px',
-                boxShadow: '0 8px 0 #3d2817, inset 0 4px 0 rgba(255,255,255,0.1)'
+                boxShadow: '0 6px 0 #3d2817, inset 0 4px 0 rgba(255,255,255,0.1)'
               }}
             >
               <p
+                className="text-base md:text-lg lg:text-xl"
                 style={{
                   color: '#f4e8d0',
-                  fontSize: '20px',
                   lineHeight: '1.8',
                   textAlign: 'center',
                   fontWeight: '500'
@@ -308,16 +332,17 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
 
       {/* Story Text & Choices - Bottom Panel */}
       <div
-        className="p-8"
+        className="p-4 md:p-6 lg:p-8 overflow-y-auto"
         style={{
           background: 'linear-gradient(to top, #1a1a1a 0%, rgba(26,26,26,0.95) 80%, transparent 100%)',
-          borderTop: '4px solid #5c3d2e'
+          borderTop: '4px solid #5c3d2e',
+          maxHeight: '45vh'
         }}
       >
         {/* Scene Description */}
-        <div className="max-w-4xl mx-auto mb-6">
-          <div className="bg-black/70 backdrop-blur-md rounded-xl p-6 border-2 border-purple-500/50">
-            <div className="text-gray-100 text-xl leading-relaxed text-center font-medium">
+        <div className="max-w-4xl mx-auto mb-4 md:mb-6">
+          <div className="bg-black/70 backdrop-blur-md rounded-xl p-4 md:p-6 border-2 border-purple-500/50">
+            <div className="text-gray-100 text-base md:text-lg lg:text-xl leading-relaxed text-center font-medium">
               {sceneData.scene}
             </div>
           </div>
@@ -325,7 +350,7 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
 
         {/* Action Choices */}
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
             {sceneData.choices.map((choice) => {
               const getButtonStyle = () => {
                 switch (choice.type) {
@@ -369,28 +394,27 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
                 <button
                   key={choice.id}
                   onClick={() => onChoice(choice.id, choice.type, choice.value)}
-                  className="transition-all active:translate-y-2"
+                  className="transition-all active:translate-y-2 text-sm md:text-base"
                   style={{
                     backgroundColor: buttonStyle.backgroundColor,
-                    border: `5px solid ${buttonStyle.borderColor}`,
+                    border: `4px solid ${buttonStyle.borderColor}`,
                     borderRadius: '4px',
-                    boxShadow: `0 8px 0 ${buttonStyle.shadowColor}`,
+                    boxShadow: `0 6px 0 ${buttonStyle.shadowColor}`,
                     color: '#f4e8d0',
-                    fontSize: '16px',
                     fontWeight: 'bold',
                     letterSpacing: '1px',
-                    padding: '16px 24px',
+                    padding: '12px 16px',
                     cursor: 'pointer',
-                    minWidth: '180px'
+                    minWidth: '140px'
                   }}
                   disabled={generatingImages}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = `0 12px 0 ${buttonStyle.shadowColor}`;
+                    e.currentTarget.style.boxShadow = `0 10px 0 ${buttonStyle.shadowColor}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = `0 8px 0 ${buttonStyle.shadowColor}`;
+                    e.currentTarget.style.boxShadow = `0 6px 0 ${buttonStyle.shadowColor}`;
                   }}
                 >
                   <div className="flex items-center justify-center">
@@ -399,7 +423,7 @@ export const VisualBattleScene: React.FC<VisualBattleSceneProps> = ({
                   { (choice.type === 'damage' || choice.type === 'combat' || choice.type === 'heal') && choice.value !== undefined && (
                     <span style={{
                       display: 'block',
-                      fontSize: '12px',
+                      fontSize: '11px',
                       marginTop: '4px',
                       opacity: 0.9,
                       color: '#e8d4b0'
