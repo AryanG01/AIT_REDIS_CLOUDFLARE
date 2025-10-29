@@ -92,7 +92,7 @@ export async function handleGeminiProxy(c: Context<{ Bindings: Env }>) {
       return c.json({
         error: 'Gemini API request failed',
         message: errorText,
-      }, geminiResponse.status);
+      }, { status: geminiResponse.status });
     }
 
     const result = await geminiResponse.json();

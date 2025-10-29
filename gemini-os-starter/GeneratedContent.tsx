@@ -79,7 +79,7 @@ export const GeneratedContent: React.FC<GeneratedContentProps> = ({
         scripts.forEach((oldScript) => {
           try {
             const newScript = document.createElement('script');
-            Array.from(oldScript.attributes).forEach((attr) =>
+            Array.from(oldScript.attributes).forEach((attr: Attr) =>
               newScript.setAttribute(attr.name, attr.value),
             );
             newScript.text = oldScript.innerHTML;

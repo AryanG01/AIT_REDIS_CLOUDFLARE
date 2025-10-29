@@ -8,7 +8,8 @@
  */
 
 import React from 'react';
-import { SpeakableText, DialogueBox, NPCInteraction, SpeechButton } from './components/SpeakableText';
+import { SpeakableText, DialogueBox, NPCInteraction } from './components/SpeakableText';
+import { SpeechButton } from './components/SpeechButton';
 import { VoiceControls } from './components/VoiceControls';
 import { GameObject, BattleState } from './types';
 

@@ -112,11 +112,6 @@ export async function generateSprite(
         enable_safety_checker: false,
       },
       logs: false,
-      onQueueUpdate: (update) => {
-        if (update.status === 'IN_PROGRESS') {
-          console.log(`[SpriteGen] ${type}: ${update.logs?.map(l => l.message).join(' ')}`);
-        }
-      },
     });
 
     console.log('[SpriteGen] Full result structure:', JSON.stringify(result).slice(0, 1000));

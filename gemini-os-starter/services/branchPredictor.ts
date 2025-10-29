@@ -232,7 +232,7 @@ class BranchPredictor {
       // Process tasks in parallel (up to maxConcurrentPredictions)
       const tasksToProcess = this.predictionQueue.splice(0, this.config.maxConcurrentPredictions);
 
-      const promises = tasksToProcess.map(task => this.executePredict ionTask(task));
+      const promises = tasksToProcess.map(task => this.executePredictionTask(task));
       await Promise.allSettled(promises);
 
       this.isProcessing = false;
@@ -319,6 +319,7 @@ class BranchPredictor {
         request.playerState.hp,
         undefined, // story seed
         request.playerState.level,
+        undefined, // consequences
         request.storyContext || undefined
       )) {
         fullResponse += chunk;

@@ -77,6 +77,31 @@ const styles = {
   text: {
     flex: 1,
   } as React.CSSProperties,
+  dialogueBox: {
+    padding: '12px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: 'white',
+    marginBottom: '8px',
+  } as React.CSSProperties,
+  speaker: {
+    fontWeight: 'bold',
+    marginBottom: '4px',
+    color: '#ffd700',
+  } as React.CSSProperties,
+  npcContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  } as React.CSSProperties,
+  npcSprite: {
+    width: '64px',
+    height: '64px',
+    imageRendering: 'pixelated' as const,
+  } as React.CSSProperties,
 };
 
 /**

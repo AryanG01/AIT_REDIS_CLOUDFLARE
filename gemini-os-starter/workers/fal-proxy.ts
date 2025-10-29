@@ -71,7 +71,7 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
       return c.json({
         error: 'FAL API request failed',
         message: responseText,
-      }, falResponse.status);
+      }, { status: falResponse.status });
     }
 
     // Parse JSON with error handling
@@ -118,7 +118,7 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
         return c.json({
           error: 'FAL API status check failed',
           message: errorText,
-        }, statusResponse.status);
+        }, { status: statusResponse.status });
       }
 
       // Get response text first for better error handling
@@ -160,7 +160,7 @@ export async function handleFalProxy(c: Context<{ Bindings: Env }>) {
           return c.json({
             error: 'Failed to fetch FAL result',
             message: errorText,
-          }, resultResponse.status);
+          }, { status: resultResponse.status });
         }
 
         const resultText = await resultResponse.text();

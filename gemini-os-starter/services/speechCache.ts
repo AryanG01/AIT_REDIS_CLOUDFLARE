@@ -119,7 +119,9 @@ class SpeechCache {
             url,
             text,
             generatedAt: Date.now(),
-            characterType,
+            duration: 0, // Duration not available from KV cache
+            model: 'fal-ai/wizper' as const,
+            voiceProfile: { characterArchetype: characterType || 'narrator', emotion },
           };
 
           // Store in memory for next time (with preloading)
